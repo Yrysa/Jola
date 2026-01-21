@@ -133,6 +133,16 @@ body {
   overflow-x: hidden;
 }
 
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+}
+
 :root[data-theme='light'] body {
   background-image:
     radial-gradient(circle at 15% 20%, rgba(11, 91, 211, 0.08) 0%, transparent 25%),
