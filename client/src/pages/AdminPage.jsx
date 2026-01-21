@@ -1,16 +1,15 @@
-import { useState, useEffect } from 'react'; // Добавлен useEffect
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { productService } from '../services/productService.js';
 import { orderService } from '../services/orderService.js';
 import LoadingSpinner from '../components/LoadingSpinner.jsx';
 import toast from 'react-hot-toast';
+import { formatPrice } from '../utils/formatPrice.js';
 import './AdminPage.css';
 
 export default function AdminPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('products');
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   // ===== ЗАПРОСЫ =====
   const { data: productsData, isLoading: productsLoading } = useQuery(
@@ -49,35 +48,6 @@ export default function AdminPage() {
       },
     },
   );
-
-  // ===== ФУНКЦИЯ ДЛЯ ЗАГРУЗКИ ТОВАРОВ =====
-  const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      const data = await productService.getProducts({ page: 1, limit: 50 });
-      setProducts(data.products ?? data);
-    } catch (err) {
-      console.error('Ошибка загрузки товаров', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  // ===== ФУНКЦИЯ УДАЛЕНИЯ ТОВАРА (альтернативная) =====
-  const handleDelete = async (id) => {
-    if (!window.confirm('Точно удалить этот товар?')) return;
-
-    try {
-      await productService.deleteProduct(id);
-      await fetchProducts();
-    } catch (err) {
-      console.error('Ошибка удаления товара', err);
-    }
-  };
 
   // ===== ФОРМА ДОБАВЛЕНИЯ ТОВАРА =====
   const [form, setForm] = useState({
@@ -148,8 +118,8 @@ export default function AdminPage() {
   };
 
   // ===== РЕНДЕР =====
-  const productsFromQuery = productsData?.data?.products || [];
-  const orders = ordersData?.data?.orders || [];
+  const productsFromQuery = productsData?.products || [];
+  const orders = ordersData?.orders || [];
 
   if (productsLoading || ordersLoading) {
     return <LoadingSpinner fullScreen />;
@@ -320,8 +290,7 @@ export default function AdminPage() {
             <hr className="admin-separator" />
 
             <h2>Список товаров</h2>
-            {loading && <p>Загрузка...</p>}
-            {!loading && products.length === 0 ? (
+            {productsFromQuery.length === 0 ? (
               <p>Пока нет товаров. Добавь первый 👇</p>
             ) : (
               <>
@@ -342,7 +311,7 @@ export default function AdminPage() {
                       <tr key={p._id}>
                         <td>{p.name}</td>
                         <td>{p.brand}</td>
-                        <td>{p.price} ₸</td>
+                        <td>{formatPrice(p.price)}</td>
                         <td>{p.discount || 0}%</td>
                         <td>{p.stock}</td>
                         <td>
@@ -358,24 +327,6 @@ export default function AdminPage() {
                     ))}
                   </tbody>
                 </table>
-
-                {/* Альтернативный список с useState */}
-                <div style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
-                  <h3>Альтернативный список (через useState)</h3>
-                  {!loading && products.map((p) => (
-                    <div key={p._id} style={{ padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <strong>{p.name}</strong> — {p.price} ₸
-                      </div>
-                      <button 
-                        onClick={() => handleDelete(p._id)}
-                        style={{ padding: '5px 10px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                      >
-                        Удалить
-                      </button>
-                    </div>
-                  ))}
-                </div>
               </>
             )}
           </div>
@@ -402,7 +353,7 @@ export default function AdminPage() {
                     <tr key={o._id}>
                       <td>{o._id}</td>
                       <td>{o.user?.name || '—'}</td>
-                      <td>{o.totalPrice} ₸</td>
+                      <td>{formatPrice(o.totalPrice)}</td>
                       <td>{o.status}</td>
                       <td>{new Date(o.createdAt).toLocaleString()}</td>
                     </tr>

@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiTrash2, FiPlus, FiMinus } from 'react-icons/fi';
 import { useCart } from '../context/CartContext.jsx';
 import { Link } from 'react-router-dom';
+import { formatPrice } from '../utils/formatPrice.js';
 
 export default function Cart({ mini = false }) {
   const { items, removeItem, updateQuantity, getTotalPrice } = useCart();
@@ -33,7 +34,7 @@ export default function Cart({ mini = false }) {
             
             <div className="item-details">
               <h4 className="item-name">{item.name}</h4>
-              <p className="item-price">{item.price} ₽</p>
+              <p className="item-price">{formatPrice(item.price)}</p>
             </div>
 
             <div className="item-controls">
@@ -65,7 +66,7 @@ export default function Cart({ mini = false }) {
       </AnimatePresence>
 
       <div className="cart-total">
-        <h3>Итого: {getTotalPrice().toFixed(2)} ₽</h3>
+        <h3>Итого: {formatPrice(getTotalPrice())}</h3>
         {!mini && (
           <Link to="/checkout" className="btn btn-primary btn-block">
             Оформить заказ

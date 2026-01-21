@@ -126,7 +126,7 @@ export const getMyOrders = async (req, res, next) => {
   try {
     const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
 
-    res.json({
+    res.status(200).json({
       status: 'success',
       data: { orders },
     });
@@ -154,7 +154,7 @@ export const getOrderById = async (req, res, next) => {
       return next(createError('Нет доступа к этому заказу', 403));
     }
 
-    res.json({
+    res.status(200).json({
       status: 'success',
       data: { order },
     });
@@ -202,7 +202,7 @@ export const getAllOrders = async (req, res, next) => {
       .populate('user', 'name email')
       .populate('orderItems.product', 'name');
 
-    res.json({
+    res.status(200).json({
       status: 'success',
       data: { orders },
     });

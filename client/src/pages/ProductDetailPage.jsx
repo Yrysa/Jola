@@ -7,6 +7,7 @@ import { useCart } from '../context/CartContext.jsx';
 import { productService } from '../services/productService.js';
 import LoadingSpinner from '../components/LoadingSpinner.jsx';
 import toast from 'react-hot-toast';
+import { formatPrice } from '../utils/formatPrice.js';
 import './ProductDetailPage.css';
 
 export default function ProductDetailPage() {
@@ -107,12 +108,12 @@ export default function ProductDetailPage() {
             <div className="product-price-section">
               {product.discount > 0 ? (
                 <>
-                  <span className="original-price">{product.price} ₸</span>
-                  <span className="discounted-price">{discountedPrice.toFixed(2)} ₸</span>
+                  <span className="original-price">{formatPrice(product.price)}</span>
+                  <span className="discounted-price">{formatPrice(discountedPrice)}</span>
                   <span className="discount-badge">-{product.discount}%</span>
                 </>
               ) : (
-                <span className="price">{product.price} ₸</span>
+                <span className="price">{formatPrice(product.price)}</span>
               )}
             </div>
 

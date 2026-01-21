@@ -22,13 +22,13 @@ API.interceptors.request.use(
 
 // Response interceptor
 API.interceptors.response.use(
-  (response) => response.data,
+  (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
-    return Promise.reject(error.response?.data || error.message);
+    return Promise.reject(error.response?.data || error);
   }
 );
 

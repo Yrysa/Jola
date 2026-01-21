@@ -3,6 +3,7 @@ import { useCart } from '../context/CartContext.jsx';
 import Cart from '../components/Cart.jsx';
 import { FiShoppingCart } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
+import { formatPrice } from '../utils/formatPrice.js';
 import './CartPage.css';
 
 export default function CartPage() {
@@ -27,7 +28,7 @@ export default function CartPage() {
             <FiShoppingCart /> Корзина
           </h1>
           <p>
-            {items.length} товар{items.length !== 1 ? 'а' : ''} на сумму {total.toFixed(2)} ₽
+            {items.length} товар{items.length !== 1 ? 'а' : ''} на сумму {formatPrice(total)}
           </p>
         </motion.div>
 
@@ -42,7 +43,7 @@ export default function CartPage() {
           {items.length > 0 && (
             <div className="cart-summary">
               <div className="total-section">
-                <h2>Итого: {total.toFixed(2)} ₽</h2>
+                <h2>Итого: {formatPrice(total)}</h2>
                 <p>Без учета доставки и налогов</p>
               </div>
 
