@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiShoppingCart } from 'react-icons/fi';
 import { useCart } from '../context/CartContext.jsx';
+import { formatPrice } from '../utils/formatPrice.js';
 
 export default function ProductCard({ product }) {
   const { addItem } = useCart();
@@ -46,11 +47,11 @@ export default function ProductCard({ product }) {
           <div className="product-price">
             {product.discount > 0 ? (
               <>
-                <span className="original-price">{product.price} ₽</span>
-                <span className="discounted-price">{discountedPrice.toFixed(2)} ₽</span>
+                <span className="original-price">{formatPrice(product.price)}</span>
+                <span className="discounted-price">{formatPrice(discountedPrice)}</span>
               </>
             ) : (
-              <span className="price">{product.price} ₽</span>
+              <span className="price">{formatPrice(product.price)}</span>
             )}
           </div>
           

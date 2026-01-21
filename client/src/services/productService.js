@@ -2,9 +2,7 @@
 import api from './api.js';
 
 function unwrapData(response) {
-  // На бэке мы обычно шлём { status, data: {...} }
-  // Если вдруг структура другая — всё равно вернём что-то полезное
-  return response.data?.data ?? response.data;
+  return response.data.data;
 }
 
 export const productService = {
@@ -76,7 +74,7 @@ export const productService = {
   // Удалить товар (админ)
   async deleteProduct(id) {
     const response = await api.delete(`/products/${id}`);
-    return unwrapData(response); // там обычно { status, message }
+    return response.data;
   },
 };
 

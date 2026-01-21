@@ -7,6 +7,7 @@ import { useCart } from "../context/CartContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { orderService } from "../services/orderService.js";
 import toast from "react-hot-toast";
+import { formatPrice } from "../utils/formatPrice.js";
 
 import "./CheckoutPage.css";
 
@@ -64,38 +65,11 @@ export default function CheckoutPage() {
         totalPrice: total,
       };
 
-      // ⚙️ Ожидаем, что orderService.createOrder может вернуть:
-      // 1) axios response (res)
-      // 2) res.data.data
-      // 3) сразу { order, paymentSession }
-      const response = await orderService.createOrder(orderData);
+      const { order, paymentSession } = await orderService.createOrder(orderData);
 
-      console.log("createOrder response:", response);
-
-      // стараемся вытащить "сырой" объект { order, paymentSession }
-      const raw =
-        response?.data?.data || // если это axios response
-        response?.data || // если бек вернул {status, data}
-        response; // если уже чистый объект
-
-      const order =
-        raw?.order ||
-        raw?.data?.order ||
-        null;
-
-      const paymentSession =
-        raw?.paymentSession ||
-        raw?.data?.paymentSession ||
-        null;
-
-      if (paymentSession && paymentSession.url) {
+      if (paymentMethod === "card" && paymentSession?.url) {
         // Stripe – редирект на оплату
         window.location.href = paymentSession.url;
-        return;
-      }
-
-      if (!order || !order._id) {
-        toast.error("Сервер не вернул данные заказа");
         return;
       }
 
@@ -158,12 +132,12 @@ export default function CheckoutPage() {
                     <div className="order-item-info">
                       <h3>{item.name}</h3>
                       <p>
-                        {item.quantity} × {item.price.toFixed(2)} ₸
+                        {item.quantity} × {formatPrice(item.price)}
                       </p>
                     </div>
                   </div>
                   <div className="item-total">
-                    {(item.quantity * item.price).toFixed(2)} ₸
+                    {formatPrice(item.quantity * item.price)}
                   </div>
                 </div>
               ))}
@@ -172,19 +146,19 @@ export default function CheckoutPage() {
             <div className="order-totals">
               <div className="total-row">
                 <span>Подытог:</span>
-                <span>{subtotal.toFixed(2)} ₸</span>
+                <span>{formatPrice(subtotal)}</span>
               </div>
               <div className="total-row">
                 <span>Доставка:</span>
-                <span>{shipping.toFixed(2)} ₸</span>
+                <span>{formatPrice(shipping)}</span>
               </div>
               <div className="total-row">
                 <span>Налог (8%):</span>
-                <span>{tax.toFixed(2)} ₸</span>
+                <span>{formatPrice(tax)}</span>
               </div>
               <div className="total-row total-row-final">
                 <span>Итого:</span>
-                <span>{total.toFixed(2)} ₸</span>
+                <span>{formatPrice(total)}</span>
               </div>
             </div>
 
@@ -297,7 +271,7 @@ export default function CheckoutPage() {
               >
                 {loading
                   ? "Оформление..."
-                  : `Оформить заказ на ${total.toFixed(2)} ₸`}
+                  : `Оформить заказ на ${formatPrice(total)}`}
               </motion.button>
             </form>
           </motion.div>

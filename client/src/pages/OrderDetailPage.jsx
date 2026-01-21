@@ -2,6 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { orderService } from '../services/orderService.js';
 import LoadingSpinner from '../components/LoadingSpinner.jsx';
+import { formatPrice } from '../utils/formatPrice.js';
 import './OrderDetailPage.css';
 
 export default function OrderDetailPage() {
@@ -9,11 +10,10 @@ export default function OrderDetailPage() {
 
   const { data, isLoading, error } = useQuery(
     ['order', id],
-    () => orderService.getOrderById(id) // ИСПРАВЛЕНО: getOrder → getOrderById
+    () => orderService.getOrderById(id)
   );
 
-  // data -> { status, data: { order } } (или просто order после unwrap)
-  const order = data; // ИСПРАВЛЕНО: data?.order → data
+  const order = data?.order;
 
   if (isLoading) return <LoadingSpinner fullScreen />;
   if (error) return <div className="order-page"><p>Ошибка загрузки заказа</p></div>;
@@ -41,9 +41,9 @@ export default function OrderDetailPage() {
               />
               <div className="order-item-info">
                 <p className="name">{item.name}</p>
-                <p>Цена: {item.price} ₽</p>
+                <p>Цена: {formatPrice(item.price)}</p>
                 <p>Кол-во: {item.quantity}</p>
-                <p>Сумма: {item.price * item.quantity} ₽</p>
+                <p>Сумма: {formatPrice(item.price * item.quantity)}</p>
               </div>
             </div>
           ))}
@@ -51,10 +51,10 @@ export default function OrderDetailPage() {
 
         <h2>Итого</h2>
         <div className="order-summary">
-          <p>Товары: {order.itemsPrice} ₽</p>
-          <p>Доставка: {order.shippingPrice} ₽</p>
-          <p>Налог: {order.taxPrice} ₽</p>
-          <p className="total">Итого: {order.totalPrice} ₽</p>
+          <p>Товары: {formatPrice(order.itemsPrice)}</p>
+          <p>Доставка: {formatPrice(order.shippingPrice)}</p>
+          <p>Налог: {formatPrice(order.taxPrice)}</p>
+          <p className="total">Итого: {formatPrice(order.totalPrice)}</p>
         </div>
       </div>
     </div>

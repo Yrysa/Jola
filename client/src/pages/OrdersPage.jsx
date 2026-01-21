@@ -2,12 +2,12 @@ import { useQuery } from 'react-query';
 import { orderService } from '../services/orderService.js';
 import { Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner.jsx';
+import { formatPrice } from '../utils/formatPrice.js';
 import './OrdersPage.css';
 
 export default function OrdersPage() {
   const { data, isLoading, error } = useQuery('my-orders', orderService.getMyOrders);
 
-  // data -> { status, data: { orders } }
   const orders = data?.orders || [];
 
   if (isLoading) return <LoadingSpinner fullScreen />;
@@ -41,7 +41,7 @@ export default function OrdersPage() {
                     Товаров: <b>{order.orderItems?.length || 0}</b>
                   </p>
                   <p>
-                    Сумма: <b>{order.totalPrice} ₽</b>
+                    Сумма: <b>{formatPrice(order.totalPrice)}</b>
                   </p>
                   <p className="order-date">
                     {new Date(order.createdAt).toLocaleString()}
