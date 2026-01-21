@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import ProductGrid from '../components/ProductGrid.jsx';
 import LoadingSpinner from '../components/LoadingSpinner.jsx';
+import ReaderModeArticle from '../components/ReaderModeArticle.jsx';
 import { productService } from '../services/productService.js';
 import './HomePage.css';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -89,6 +90,12 @@ export default function HomePage() {
         <div className="container">
           <h2>Хиты продаж</h2>
           <ProductGrid filters={{ featured: true, limit: 8 }} />
+        </div>
+      </section>
+
+      <section className="reader-mode-section">
+        <div className="container">
+          <ReaderModeArticle />
         </div>
       </section>
     </div>
