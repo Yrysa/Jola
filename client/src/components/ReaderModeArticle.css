@@ -1,0 +1,198 @@
+.reader-article {
+  margin-top: 2rem;
+  padding: 2rem;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  transition: all 0.3s ease;
+}
+
+.reader-article__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.reader-article__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  margin-bottom: 0.5rem;
+}
+
+.reader-article__title {
+  margin-bottom: 0.5rem;
+}
+
+.reader-article__subtitle {
+  color: var(--color-muted);
+  margin-bottom: 0;
+}
+
+.reader-article__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.reader-article__controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  border: 1px solid var(--color-border);
+}
+
+.reader-article__control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  font-weight: 600;
+}
+
+.reader-article__pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.reader-pill {
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--color-text);
+  transition: all 0.2s ease;
+}
+
+.reader-pill:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.reader-pill--active {
+  background: var(--gradient-primary);
+  color: #fff;
+  border-color: transparent;
+}
+
+.reader-article__body {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 2rem;
+}
+
+.reader-article__content h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--color-primary);
+}
+
+.reader-article__content ul {
+  margin-left: 1.2rem;
+  margin-bottom: 1rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.reader-article__image {
+  width: 100%;
+  border-radius: 16px;
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow-small);
+}
+
+.reader-article__aside {
+  display: grid;
+  gap: 1rem;
+}
+
+.reader-article__card {
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+}
+
+.reader-article--active .reader-article__aside,
+.reader-article--active .reader-article__eyebrow,
+.reader-article--active .reader-article__subtitle {
+  display: none;
+}
+
+.reader-article--active .reader-article__body {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.reader-article--serif .reader-article__content {
+  font-family: 'Merriweather', 'Times New Roman', serif;
+}
+
+.reader-article--sans .reader-article__content {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+.reader-article--mono .reader-article__content {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+.reader-article--small .reader-article__content {
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.reader-article--medium .reader-article__content {
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+.reader-article--large .reader-article__content {
+  font-size: 1.2rem;
+  line-height: 1.9;
+}
+
+.reader-article--light {
+  background: #fdfdfb;
+}
+
+.reader-article--sepia {
+  background: #f6efe6;
+}
+
+.reader-article--dark {
+  background: #1f2430;
+  color: #f5f6f7;
+}
+
+.reader-article--dark .reader-article__card,
+.reader-article--dark .reader-article__controls,
+.reader-article--dark .reader-article__toggle,
+.reader-article--dark .reader-pill {
+  color: #f5f6f7;
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.reader-article--dark .reader-pill--active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 900px) {
+  .reader-article__body {
+    grid-template-columns: 1fr;
+  }
+
+  .reader-article__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

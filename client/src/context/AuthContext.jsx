@@ -29,6 +29,14 @@ function authReducer(state, action) {
         error: null,
       };
 
+    case 'UPDATE_PROFILE_SUCCESS':
+      return {
+        ...state,
+        user: action.payload,
+        loading: false,
+        error: null,
+      };
+
     case 'LOGIN_FAIL':
     case 'REGISTER_FAIL':
     case 'LOAD_USER_FAIL':
@@ -130,6 +138,10 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: 'CLEAR_ERROR' });
   };
 
+  const updateUser = (updatedUser) => {
+    dispatch({ type: 'UPDATE_PROFILE_SUCCESS', payload: updatedUser });
+  };
+
   const value = {
     user: state.user,
     token: state.token,
@@ -139,6 +151,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     clearError,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

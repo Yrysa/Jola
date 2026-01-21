@@ -22,36 +22,56 @@ export const getUserProfile = async (req, res, next) => {
 // @access  Private
 export const updateUserProfile = async (req, res, next) => {
   try {
-    const { name, email, address, phone, avatar } = req.body;
-    
+    const { name, email, address, phone, avatarUrl } = req.body;
+
+    if (
+      !name ||
+      !email ||
+      !phone ||
+      !avatarUrl ||
+      !address?.street ||
+      !address?.city ||
+      !address?.zipCode ||
+      !address?.country
+    ) {
+      return next(createError('Все поля обязательны для заполнения', 400));
+    }
+
     const user = await User.findById(req.user.id);
-    
-    if (user) {
-      user.name = name || user.name;
-      user.email = email || user.email;
-      user.address = address || user.address;
-      user.phone = phone || user.phone;
-      user.avatar = avatar || user.avatar;
-      
-      const updatedUser = await user.save();
-      
-      res.json({
-        status: 'success',
-        data: {
-          user: {
-            id: updatedUser._id,
-            name: updatedUser.name,
-            email: updatedUser.email,
-            role: updatedUser.role,
-            avatar: updatedUser.avatar,
-            address: updatedUser.address,
-            phone: updatedUser.phone,
-          },
-        },
-      });
-    } else {
+
+    if (!user) {
       return next(createError('Пользователь не найден', 404));
     }
+
+    if (email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser && existingUser._id.toString() !== user._id.toString()) {
+        return next(createError('Пользователь с таким email уже существует', 400));
+      }
+    }
+
+    user.name = name;
+    user.email = email;
+    user.address = address;
+    user.phone = phone;
+    user.avatarUrl = avatarUrl;
+
+    const updatedUser = await user.save();
+
+    res.json({
+      status: 'success',
+      data: {
+        user: {
+          id: updatedUser._id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          role: updatedUser.role,
+          avatarUrl: updatedUser.avatarUrl,
+          address: updatedUser.address,
+          phone: updatedUser.phone,
+        },
+      },
+    });
   } catch (error) {
     next(error);
   }

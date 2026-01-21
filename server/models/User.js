@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user',
   },
-  avatar: {
+  avatarUrl: {
     type: String,
     default: 'https://i.pravatar.cc/150?img=3',
   },

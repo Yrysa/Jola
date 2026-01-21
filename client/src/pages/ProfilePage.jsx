@@ -1,19 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext.jsx';
 import { authService } from '../services/authService.js';
-import { FiUser, FiMail, FiPhone, FiSave } from 'react-icons/fi';
+import { FiCamera, FiMail, FiPhone, FiSave, FiUser } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import UserPreferences from '../components/UserPreferences.jsx';
 import './ProfilePage.css';
 
 export default function ProfilePage() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
+    avatarUrl: user?.avatarUrl || user?.avatar || '',
     address: {
       street: user?.address?.street || '',
       city: user?.address?.city || '',
@@ -22,6 +23,24 @@ export default function ProfilePage() {
     },
     phone: user?.phone || '',
   });
+
+  useEffect(() => {
+    if (!user) return;
+    setFormData({
+      name: user.name || '',
+      email: user.email || '',
+      avatarUrl: user.avatarUrl || user.avatar || '',
+      address: {
+        street: user.address?.street || '',
+        city: user.address?.city || '',
+        zipCode: user.address?.zipCode || '',
+        country: user.address?.country || '',
+      },
+      phone: user.phone || '',
+    });
+  }, [user]);
+
+  const avatarPreview = formData.avatarUrl || user?.avatarUrl || user?.avatar;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -41,8 +60,68 @@ export default function ProfilePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const trimmedName = formData.name.trim();
+    const trimmedEmail = formData.email.trim();
+    const trimmedPhone = formData.phone.trim();
+    const trimmedAvatarUrl = formData.avatarUrl.trim();
+    const trimmedAddress = {
+      street: formData.address.street.trim(),
+      city: formData.address.city.trim(),
+      zipCode: formData.address.zipCode.trim(),
+      country: formData.address.country.trim(),
+    };
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+
+    if (
+      !trimmedName ||
+      !trimmedEmail ||
+      !trimmedPhone ||
+      !trimmedAvatarUrl ||
+      !trimmedAddress.street ||
+      !trimmedAddress.city ||
+      !trimmedAddress.zipCode ||
+      !trimmedAddress.country
+    ) {
+      toast.error('Заполните все поля профиля.');
+      return;
+    }
+
+    if (!emailRegex.test(trimmedEmail)) {
+      toast.error('Укажите корректный email.');
+      return;
+    }
+
+    if (!phoneRegex.test(trimmedPhone)) {
+      toast.error('Телефон должен быть в формате +79991234567.');
+      return;
+    }
+
     try {
-      await authService.updateProfile(formData);
+      new URL(trimmedAvatarUrl);
+    } catch (error) {
+      toast.error('Ссылка на аватар должна быть корректным URL.');
+      return;
+    }
+
+    try {
+      const updated = await authService.updateProfile({
+        ...formData,
+        name: trimmedName,
+        email: trimmedEmail,
+        phone: trimmedPhone,
+        avatarUrl: trimmedAvatarUrl,
+        address: trimmedAddress,
+      });
+      updateUser(updated.user);
+      setFormData({
+        name: updated.user.name,
+        email: updated.user.email,
+        avatarUrl: updated.user.avatarUrl,
+        address: updated.user.address || trimmedAddress,
+        phone: updated.user.phone,
+      });
       toast.success('Профиль обновлен!');
     } catch (error) {
       toast.error(error.message || 'Ошибка обновления');
@@ -58,7 +137,7 @@ export default function ProfilePage() {
         transition={{ duration: 0.5 }}
       >
         <div className="profile-header">
-          <img src={user?.avatar} alt={user?.name} className="avatar" />
+          <img src={avatarPreview} alt={user?.name} className="avatar" />
           <h2>{user?.name}</h2>
           <p className="role">{user?.role === 'admin' ? 'Администратор' : 'Пользователь'}</p>
         </div>
@@ -92,7 +171,6 @@ export default function ProfilePage() {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                disabled
               />
             </div>
 
@@ -107,6 +185,24 @@ export default function ProfilePage() {
                 value={formData.phone}
                 onChange={handleChange}
                 placeholder="+1234567890"
+                required
+                pattern="\\+?[1-9]\\d{1,14}"
+                title="Телефон в формате +79991234567"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="avatarUrl">
+                <FiCamera /> Ссылка на аватар
+              </label>
+              <input
+                type="url"
+                id="avatarUrl"
+                name="avatarUrl"
+                value={formData.avatarUrl}
+                onChange={handleChange}
+                placeholder="https://example.com/avatar.jpg"
+                required
               />
             </div>
           </div>
@@ -122,6 +218,7 @@ export default function ProfilePage() {
                 name="address.street"
                 value={formData.address.street}
                 onChange={handleChange}
+                required
               />
             </div>
 
@@ -134,6 +231,7 @@ export default function ProfilePage() {
                   name="address.city"
                   value={formData.address.city}
                   onChange={handleChange}
+                  required
                 />
               </div>
 
@@ -145,6 +243,7 @@ export default function ProfilePage() {
                   name="address.zipCode"
                   value={formData.address.zipCode}
                   onChange={handleChange}
+                  required
                 />
               </div>
             </div>
@@ -157,6 +256,7 @@ export default function ProfilePage() {
                 name="address.country"
                 value={formData.address.country}
                 onChange={handleChange}
+                required
               />
             </div>
           </div>
