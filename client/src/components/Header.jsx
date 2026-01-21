@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import { FiShoppingCart, FiUser, FiLogOut, FiLogIn } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import ThemeToggle from './ThemeToggle.jsx';
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -40,6 +41,7 @@ export default function Header() {
           </nav>
 
           <div className="header-actions">
+            <ThemeToggle />
             <Link to="/cart" className="cart-icon">
               <FiShoppingCart size={24} />
               {totalItems > 0 && (

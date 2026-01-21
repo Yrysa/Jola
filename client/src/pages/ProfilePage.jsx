@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext.jsx';
 import { authService } from '../services/authService.js';
-import { FiUser, FiMail, FiMapPin, FiPhone, FiSave } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiSave } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import UserPreferences from '../components/UserPreferences.jsx';
 import './ProfilePage.css';
 
 export default function ProfilePage() {
@@ -169,6 +170,8 @@ export default function ProfilePage() {
             <FiSave /> Сохранить изменения
           </motion.button>
         </form>
+
+        <UserPreferences />
 
         <div className="profile-actions">
           <button
