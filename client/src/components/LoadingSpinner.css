@@ -1,0 +1,83 @@
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.loading-spinner.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: rgba(26, 26, 46, 0.9);
+  z-index: 9999;
+}
+
+.spinner {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.spinner-ring {
+  position: absolute;
+  border: 4px solid transparent;
+  border-top: 4px solid #00d4ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.spinner-ring:nth-child(1) {
+  width: 80px;
+  height: 80px;
+  animation-delay: 0s;
+}
+
+.spinner-ring:nth-child(2) {
+  width: 60px;
+  height: 60px;
+  top: 10px;
+  left: 10px;
+  animation-delay: 0.2s;
+  border-top-color: #ff00ff;
+}
+
+.spinner-ring:nth-child(3) {
+  width: 40px;
+  height: 40px;
+  top: 20px;
+  left: 20px;
+  animation-delay: 0.4s;
+  border-top-color: #00ff00;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Размеры */
+.loading-spinner.small .spinner {
+  width: 40px;
+  height: 40px;
+}
+
+.loading-spinner.small .spinner-ring:nth-child(1) {
+  width: 40px;
+  height: 40px;
+}
+
+.loading-spinner.small .spinner-ring:nth-child(2) {
+  width: 30px;
+  height: 30px;
+  top: 5px;
+  left: 5px;
+}
+
+.loading-spinner.small .spinner-ring:nth-child(3) {
+  width: 20px;
+  height: 20px;
+  top: 10px;
+  left: 10px;
+}
