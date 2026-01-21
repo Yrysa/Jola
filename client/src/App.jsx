@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import Header from './components/Header.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import LoadingSpinner from './components/LoadingSpinner.jsx';
+import ContactFooter from './components/ContactFooter.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { CartProvider } from './context/CartContext.jsx';
 
@@ -90,6 +91,7 @@ function App() {
               </Routes>
             </Suspense>
           </main>
+          <ContactFooter />
         </div>
       </CartProvider>
     </AuthProvider>
