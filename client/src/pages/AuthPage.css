@@ -79,8 +79,13 @@ input {
 
 input:focus {
   outline: none;
-  border-color: #00d4ff;
-  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+  border-color: #2a2a4e;
+  box-shadow: none;
+}
+
+.auth-page :focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 input::placeholder {
