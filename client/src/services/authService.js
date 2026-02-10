@@ -1,30 +1,57 @@
 // client/src/services/authService.js
 import API from './api.js';
 
+const getErrorMessage = (error, fallbackMessage) => {
+  if (typeof error === 'string') return error;
+  if (Array.isArray(error?.message)) return error.message.join(', ');
+  return error?.message || fallbackMessage;
+};
+
+const unwrap = (res) => {
+  if (!res?.data?.data) {
+    throw new Error('Некорректный ответ сервера');
+  }
+  return res.data.data;
+};
+
 export const authService = {
   // Вход
   login: async (email, password) => {
-    // API уже возвращает { status, data: { user, token } }
-    const res = await API.post('/auth/login', { email, password });
-    // вернём только полезные данные
-    return res.data.data; // { user, token }
+    try {
+      const res = await API.post('/auth/login', { email, password });
+      return unwrap(res); // { user, token }
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Ошибка входа'));
+    }
   },
 
   // Регистрация
   register: async (userData) => {
-    const res = await API.post('/auth/register', userData);
-    return res.data.data; // { user, token }
+    try {
+      const res = await API.post('/auth/register', userData);
+      return unwrap(res); // { user, token }
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Ошибка регистрации'));
+    }
   },
 
   // Текущий пользователь по токену
   getMe: async () => {
-    const res = await API.get('/auth/me');
-    return res.data.data; // { user }
+    try {
+      const res = await API.get('/auth/me');
+      return unwrap(res); // { user }
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Не удалось загрузить профиль'));
+    }
   },
 
   // Обновление профиля
   updateProfile: async (userData) => {
-    const res = await API.put('/users/profile', userData);
-    return res.data.data; // { user }
+    try {
+      const res = await API.put('/users/profile', userData);
+      return unwrap(res); // { user }
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Не удалось обновить профиль'));
+    }
   },
 };

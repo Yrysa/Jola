@@ -1,16 +1,39 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext.jsx';
-import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiInfo } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import './AuthPage.css';
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const { login, error, clearError } = useAuth();
   const navigate = useNavigate();
+
+  const validation = useMemo(() => {
+    const email = formData.email.trim();
+    const password = formData.password;
+
+    return {
+      email: !email
+        ? 'Введите email'
+        : !emailRegex.test(email)
+        ? 'Введите корректный email'
+        : '',
+      password: !password
+        ? 'Введите пароль'
+        : password.length < 6
+        ? 'Пароль должен быть не короче 6 символов'
+        : '',
+    };
+  }, [formData]);
+
+  const hasErrors = Boolean(validation.email || validation.password);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -19,8 +42,15 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitted(true);
+
+    if (hasErrors) {
+      toast.error('Проверьте корректность данных перед входом');
+      return;
+    }
+
     try {
-      await login(formData.email, formData.password);
+      await login(formData.email.trim(), formData.password);
       toast.success('Успешный вход!');
       navigate('/');
     } catch (err) {
@@ -41,7 +71,7 @@ export default function LoginPage() {
           <p>Добро пожаловать обратно!</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <div className="input-wrapper">
@@ -54,8 +84,15 @@ export default function LoginPage() {
                 onChange={handleChange}
                 placeholder="Ваш email"
                 required
+                autoComplete="email"
+                aria-invalid={submitted && Boolean(validation.email)}
               />
             </div>
+            {submitted && validation.email ? (
+              <span className="field-hint field-hint-error">{validation.email}</span>
+            ) : (
+              <span className="field-hint">Используйте email, указанный при регистрации.</span>
+            )}
           </div>
 
           <div className="form-group">
@@ -70,15 +107,28 @@ export default function LoginPage() {
                 onChange={handleChange}
                 placeholder="Ваш пароль"
                 required
+                autoComplete="current-password"
+                aria-invalid={submitted && Boolean(validation.password)}
               />
               <button
                 type="button"
                 className="toggle-password"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
               >
                 {showPassword ? <FiEyeOff /> : <FiEye />}
               </button>
             </div>
+            {submitted && validation.password ? (
+              <span className="field-hint field-hint-error">{validation.password}</span>
+            ) : (
+              <span className="field-hint">Минимум 6 символов.</span>
+            )}
+          </div>
+
+          <div className="auth-tip" role="note">
+            <FiInfo />
+            <span>Если забыли пароль — пока используйте регистрацию нового аккаунта с другим email.</span>
           </div>
 
           {error && <div className="error-alert">{error}</div>}

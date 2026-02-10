@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext.jsx';
-import { FiUser, FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiInfo } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import './AuthPage.css';
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -15,8 +17,43 @@ export default function RegisterPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const { register, error, clearError } = useAuth();
   const navigate = useNavigate();
+
+  const validation = useMemo(() => {
+    const name = formData.name.trim();
+    const email = formData.email.trim();
+    const password = formData.password;
+    const confirmPassword = formData.confirmPassword;
+
+    return {
+      name: !name
+        ? 'Введите имя'
+        : name.length < 2
+        ? 'Имя должно содержать минимум 2 символа'
+        : '',
+      email: !email
+        ? 'Введите email'
+        : !emailRegex.test(email)
+        ? 'Введите корректный email'
+        : '',
+      password: !password
+        ? 'Введите пароль'
+        : password.length < 6
+        ? 'Пароль должен содержать минимум 6 символов'
+        : '',
+      confirmPassword: !confirmPassword
+        ? 'Подтвердите пароль'
+        : password !== confirmPassword
+        ? 'Пароли не совпадают'
+        : '',
+    };
+  }, [formData]);
+
+  const hasErrors = Boolean(
+    validation.name || validation.email || validation.password || validation.confirmPassword
+  );
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,21 +62,17 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Пароли не совпадают');
-      return;
-    }
+    setSubmitted(true);
 
-    if (formData.password.length < 6) {
-      toast.error('Пароль должен содержать минимум 6 символов');
+    if (hasErrors) {
+      toast.error('Проверьте поля формы перед регистрацией');
       return;
     }
 
     try {
       await register({
-        name: formData.name,
-        email: formData.email,
+        name: formData.name.trim(),
+        email: formData.email.trim(),
         password: formData.password,
       });
       toast.success('Регистрация успешна!');
@@ -62,7 +95,7 @@ export default function RegisterPage() {
           <p>Создайте свой аккаунт</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleSubmit} className="auth-form" noValidate>
           <div className="form-group">
             <label htmlFor="name">Имя</label>
             <div className="input-wrapper">
@@ -76,8 +109,15 @@ export default function RegisterPage() {
                 placeholder="Ваше имя"
                 required
                 minLength="2"
+                autoComplete="name"
+                aria-invalid={submitted && Boolean(validation.name)}
               />
             </div>
+            {submitted && validation.name ? (
+              <span className="field-hint field-hint-error">{validation.name}</span>
+            ) : (
+              <span className="field-hint">Укажите имя, которое будет видно в профиле.</span>
+            )}
           </div>
 
           <div className="form-group">
@@ -92,8 +132,15 @@ export default function RegisterPage() {
                 onChange={handleChange}
                 placeholder="Ваш email"
                 required
+                autoComplete="email"
+                aria-invalid={submitted && Boolean(validation.email)}
               />
             </div>
+            {submitted && validation.email ? (
+              <span className="field-hint field-hint-error">{validation.email}</span>
+            ) : (
+              <span className="field-hint">Используйте реальный email для входа в будущем.</span>
+            )}
           </div>
 
           <div className="form-group">
@@ -109,15 +156,23 @@ export default function RegisterPage() {
                 placeholder="Минимум 6 символов"
                 required
                 minLength="6"
+                autoComplete="new-password"
+                aria-invalid={submitted && Boolean(validation.password)}
               />
               <button
                 type="button"
                 className="toggle-password"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
               >
                 {showPassword ? <FiEyeOff /> : <FiEye />}
               </button>
             </div>
+            {submitted && validation.password ? (
+              <span className="field-hint field-hint-error">{validation.password}</span>
+            ) : (
+              <span className="field-hint">Рекомендуется использовать буквы, цифры и спецсимволы.</span>
+            )}
           </div>
 
           <div className="form-group">
@@ -133,15 +188,28 @@ export default function RegisterPage() {
                 placeholder="Повторите пароль"
                 required
                 minLength="6"
+                autoComplete="new-password"
+                aria-invalid={submitted && Boolean(validation.confirmPassword)}
               />
               <button
                 type="button"
                 className="toggle-password"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                aria-label={showConfirmPassword ? 'Скрыть подтверждение пароля' : 'Показать подтверждение пароля'}
               >
                 {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
               </button>
             </div>
+            {submitted && validation.confirmPassword ? (
+              <span className="field-hint field-hint-error">{validation.confirmPassword}</span>
+            ) : (
+              <span className="field-hint">Поле должно полностью совпадать с паролем выше.</span>
+            )}
+          </div>
+
+          <div className="auth-tip" role="note">
+            <FiInfo />
+            <span>После регистрации вы будете автоматически авторизованы и перенаправлены на главную.</span>
           </div>
 
           {error && <div className="error-alert">{error}</div>}
