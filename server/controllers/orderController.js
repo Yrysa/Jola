@@ -65,7 +65,7 @@ export const createOrder = async (req, res, next) => {
       taxPrice: tax,
       shippingPrice: shipping,
       totalPrice: calcTotal,
-      status: 'pending',
+      status: 'new',
       isPaid: false,
       isDelivered: false,
     });

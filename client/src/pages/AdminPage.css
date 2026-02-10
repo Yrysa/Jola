@@ -270,3 +270,23 @@ td {
     height: 40px;
   }
 }
+.product-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.product-form input,
+.product-form textarea,
+.admin-content select {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #394; 
+  border-radius: 8px;
+  background: #fff;
+}
+
+.btn-secondary {
+  background: #1f6feb;
+  color: #fff;
+}

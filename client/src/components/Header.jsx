@@ -38,6 +38,11 @@ export default function Header() {
                 Админка
               </Link>
             )}
+            {!user && (
+              <Link to="/admin/login" className="admin-link">
+                Admin Login
+              </Link>
+            )}
           </nav>
 
           <div className="header-actions">

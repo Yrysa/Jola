@@ -68,6 +68,10 @@ export const login = async (req, res, next) => {
       return next(createError('Неверные данные для входа', 401));
     }
 
+    if (user.isBanned) {
+      return next(createError('Ваш аккаунт заблокирован', 403));
+    }
+
     // Check password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {

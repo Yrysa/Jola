@@ -19,6 +19,7 @@ const OrderDetailPage = lazy(() => import('./pages/OrderDetailPage.jsx'));
 const CartPage = lazy(() => import('./pages/CartPage.jsx'));
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage.jsx'));
 const AdminPage = lazy(() => import('./pages/AdminPage.jsx'));
+const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage.jsx'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage.jsx'));
 
 
@@ -77,6 +78,7 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route path="/admin/login" element={<AdminLoginPage />} />
                 <Route
                   path="/admin"
                   element={

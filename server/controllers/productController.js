@@ -10,7 +10,7 @@ export const getProducts = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 12;
     const skip = (page - 1) * limit;
     
-    const filter = {};
+    const filter = { isHidden: { $ne: true } };
     
     // Фильтрация по категории
     if (req.query.category) {
@@ -77,7 +77,7 @@ export const getProductById = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id).lean();
     
-    if (!product) {
+    if (!product || product.isHidden) {
       return next(createError('Товар не найден', 404));
     }
     

@@ -60,6 +60,10 @@ const productSchema = new mongoose.Schema({
     max: 100,
     default: 0,
   },
+  isHidden: {
+    type: Boolean,
+    default: false,
+  },
 }, {
   timestamps: true,
   toJSON: { virtuals: true },

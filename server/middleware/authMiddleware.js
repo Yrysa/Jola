@@ -25,9 +25,9 @@ export const protect = async (req, res, next) => {
       return next(createError('Пользователь не найден', 401));
     }
 
-// if (!user.isVerified) {
-//   return next(createError('Аккаунт не подтвержден', 401));
-// }
+    if (user.isBanned) {
+      return next(createError('Ваш аккаунт заблокирован. Обратитесь к администратору', 403));
+    }
 
     // Добавление пользователя в объект запроса
     req.user = user;
@@ -62,3 +62,5 @@ export const authorize = (...roles) => {
     next();
   };
 };
+
+export const requireRole = (...roles) => authorize(...roles);
