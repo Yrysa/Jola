@@ -2,6 +2,9 @@ import express from 'express';
 import {
   getUserProfile,
   updateUserProfile,
+  changePassword,
+  toggleTwoFactor,
+  getLoginHistory,
   getAllUsers,
   deleteUser,
 } from '../controllers/userController.js';
@@ -11,11 +14,12 @@ const router = express.Router();
 
 router.use(protect);
 
-// Профиль пользователя
 router.get('/profile', getUserProfile);
 router.put('/profile', updateUserProfile);
+router.put('/change-password', changePassword);
+router.patch('/2fa', toggleTwoFactor);
+router.get('/login-history', getLoginHistory);
 
-// Админ маршруты
 router.get('/', admin, getAllUsers);
 router.delete('/:id', admin, deleteUser);
 

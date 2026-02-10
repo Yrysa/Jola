@@ -1,48 +1,67 @@
+import crypto from 'crypto';
 import User from '../models/User.js';
 import { createError } from '../middleware/errorHandler.js';
 
-// @desc    Зарегистрировать пользователя
-// @route   POST /api/auth/register
-// @access  Public
+const buildAuthPayload = (user, token) => ({
+  user: {
+    id: user._id,
+    name: user.name,
+    surname: user.surname,
+    email: user.email,
+    role: user.role,
+    avatarUrl: user.avatarUrl,
+    address: user.address,
+    deliveryAddresses: user.deliveryAddresses,
+    phone: user.phone,
+    phoneVerified: user.phoneVerified,
+    notificationPreferences: user.notificationPreferences,
+    localeSettings: user.localeSettings,
+    twoFactorEnabled: user.twoFactorEnabled,
+    isVerified: user.isVerified,
+    lastLogin: user.lastLogin,
+    loginHistory: user.loginHistory,
+  },
+  token,
+});
+
+const getRequestMeta = (req) => ({
+  ip: req.ip || req.headers['x-forwarded-for'] || req.socket?.remoteAddress,
+  userAgent: req.headers['user-agent'] || 'unknown',
+  device: req.headers['sec-ch-ua-platform'] || 'unknown',
+});
+
 export const register = async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
 
-    // Validation
     if (!name || !email || !password) {
       return next(createError('Пожалуйста, заполните все поля', 400));
     }
 
-    // Check if user exists
     const userExists = await User.findOne({ email });
     if (userExists) {
       return next(createError('Пользователь с таким email уже существует', 400));
     }
 
-    // Create user
     const user = await User.create({
       name,
       email,
       password,
       role: email === process.env.ADMIN_EMAIL ? 'admin' : 'user',
-      isVerified: true, // сразу считаем подтверждённым
+      isVerified: false,
     });
 
+    const verifyToken = user.getEmailVerificationToken();
+    await user.save({ validateBeforeSave: false });
 
-    // Generate token
     const token = user.getSignedJwtToken();
 
     res.status(201).json({
       status: 'success',
+      message: 'Регистрация успешна. Подтвердите email.',
       data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          avatarUrl: user.avatarUrl,
-        },
-        token,
+        ...buildAuthPayload(user, token),
+        emailVerificationToken: verifyToken,
       },
     });
   } catch (error) {
@@ -50,49 +69,126 @@ export const register = async (req, res, next) => {
   }
 };
 
-// @desc    Авторизовать пользователя
-// @route   POST /api/auth/login
-// @access  Public
 export const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, twoFactorCode } = req.body;
 
-    // Validation
     if (!email || !password) {
       return next(createError('Пожалуйста, введите email и пароль', 400));
     }
 
-    // Check for user
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
       return next(createError('Неверные данные для входа', 401));
     }
 
-    // Check password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return next(createError('Неверные данные для входа', 401));
     }
 
-    // Update last login
-    await user.updateLastLogin();
+    if (user.twoFactorEnabled) {
+      if (!twoFactorCode) {
+        const oneTimeCode = user.generateTwoFactorCode();
+        await user.save({ validateBeforeSave: false });
+        return res.status(401).json({
+          status: 'requires_2fa',
+          message: 'Требуется код двухфакторной аутентификации',
+          data: {
+            requiresTwoFactor: true,
+            twoFactorCode: oneTimeCode,
+          },
+        });
+      }
 
-    // Generate token
+      const hashedCode = crypto.createHash('sha256').update(twoFactorCode).digest('hex');
+      const isCodeValid =
+        user.twoFactorCode === hashedCode && user.twoFactorCodeExpire && user.twoFactorCodeExpire > Date.now();
+
+      if (!isCodeValid) {
+        return next(createError('Неверный или просроченный код 2FA', 401));
+      }
+
+      user.twoFactorCode = undefined;
+      user.twoFactorCodeExpire = undefined;
+    }
+
+    await user.updateLastLogin(getRequestMeta(req));
+
     const token = user.getSignedJwtToken();
 
     res.json({
       status: 'success',
+      data: buildAuthPayload(user, token),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMe = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    res.json({
+      status: 'success',
+      data: { user },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyEmail = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const emailVerificationToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      emailVerificationToken,
+      emailVerificationExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return next(createError('Токен подтверждения недействителен или истёк', 400));
+    }
+
+    user.isVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpire = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    res.json({
+      status: 'success',
+      message: 'Email успешно подтверждён',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return next(createError('Укажите email для восстановления пароля', 400));
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return next(createError('Пользователь с таким email не найден', 404));
+    }
+
+    const resetToken = user.getResetPasswordToken();
+    await user.save({ validateBeforeSave: false });
+
+    res.json({
+      status: 'success',
+      message: 'Ссылка для сброса пароля сгенерирована',
       data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          avatarUrl: user.avatarUrl,
-          address: user.address,
-          phone: user.phone,
-        },
-        token,
+        resetToken,
+        resetUrl: `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password/${resetToken}`,
       },
     });
   } catch (error) {
@@ -100,16 +196,37 @@ export const login = async (req, res, next) => {
   }
 };
 
-// @desc    Получить данные текущего пользователя
-// @route   GET /api/auth/me
-// @access  Private
-export const getMe = async (req, res, next) => {
+export const resetPassword = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
-    
+    const { token } = req.params;
+    const { password } = req.body;
+
+    if (!password || password.length < 6) {
+      return next(createError('Новый пароль должен содержать минимум 6 символов', 400));
+    }
+
+    const resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    }).select('+password');
+
+    if (!user) {
+      return next(createError('Токен сброса пароля недействителен или истёк', 400));
+    }
+
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    const jwtToken = user.getSignedJwtToken();
+
     res.json({
       status: 'success',
-      data: { user },
+      message: 'Пароль успешно обновлён',
+      data: buildAuthPayload(user, jwtToken),
     });
   } catch (error) {
     next(error);
