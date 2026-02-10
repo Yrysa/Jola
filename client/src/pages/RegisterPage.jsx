@@ -31,19 +31,22 @@ export default function RegisterPage() {
       return;
     }
 
-    if (formData.password.length < 6) {
-      toast.error('Пароль должен содержать минимум 6 символов');
+    if (formData.password.length < 8) {
+      toast.error('Пароль должен содержать минимум 8 символов');
       return;
     }
 
     try {
-      await register({
+      const result = await register({
         name: formData.name,
         email: formData.email,
         password: formData.password,
       });
-      toast.success('Регистрация успешна!');
-      navigate('/');
+      toast.success('Регистрация успешна. Подтвердите email перед входом.');
+      if (result?.data?.verificationToken) {
+        toast((t) => `Токен подтверждения (демо): ${result.data.verificationToken.slice(0, 12)}...`);
+      }
+      navigate('/login');
     } catch (err) {
       toast.error(err.message || 'Ошибка регистрации');
     }
@@ -106,9 +109,9 @@ export default function RegisterPage() {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Минимум 6 символов"
+                placeholder="Минимум 8 символов"
                 required
-                minLength="6"
+                minLength="8"
               />
               <button
                 type="button"
@@ -132,7 +135,7 @@ export default function RegisterPage() {
                 onChange={handleChange}
                 placeholder="Повторите пароль"
                 required
-                minLength="6"
+                minLength="8"
               />
               <button
                 type="button"

@@ -8,7 +8,7 @@ import {
   deleteProduct,
   getCategories,
 } from '../controllers/productController.js';
-import { protect, admin } from '../middleware/authMiddleware.js';
+import { protect, requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -18,8 +18,8 @@ router.get('/categories', getCategories);  // список категорий
 router.get('/:id', getProductById);        // один товар
 
 // Админские маршруты
-router.post('/', protect, admin, createProduct);    // создать товар
-router.put('/:id', protect, admin, updateProduct);  // обновить товар
-router.delete('/:id', protect, admin, deleteProduct); // удалить товар
+router.post('/', protect, requireRole('admin'), createProduct);    // создать товар
+router.put('/:id', protect, requireRole('admin'), updateProduct);  // обновить товар
+router.delete('/:id', protect, requireRole('admin'), deleteProduct); // удалить товар
 
 export default router;

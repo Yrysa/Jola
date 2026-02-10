@@ -1,45 +1,43 @@
-// Глобальный обработчик ошибок
-export const createError = (message, statusCode) => {
+import { logError } from './logger.js';
+
+export const createError = (message, statusCode = 500) => {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
 };
 
 export const errorHandler = (err, req, res, next) => {
-  let error = { ...err };
-  error.message = err.message;
+  let statusCode = err.statusCode || 500;
+  let message = err.message || 'Внутренняя ошибка сервера';
 
-  // Log error
-  console.error('❌ Ошибка:', {
-    message: err.message,
+  if (err.name === 'CastError') {
+    statusCode = 404;
+    message = `Ресурс не найден. Неверный формат ID: ${err.value}`;
+  }
+
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyValue || {})[0] || 'field';
+    statusCode = 409;
+    message = `Дубликат поля "${field}": ${err.keyValue?.[field] || ''}`;
+  }
+
+  if (err.name === 'ValidationError') {
+    statusCode = 400;
+    message = Object.values(err.errors).map((val) => val.message).join(', ');
+  }
+
+  logError({
+    message,
+    statusCode,
     stack: err.stack,
     url: req.originalUrl,
     method: req.method,
     ip: req.ip,
   });
 
-  // Mongoose bad ObjectId
-  if (err.name === 'CastError') {
-    const message = `Ресурс не найден. Неверный формат ID: ${err.value}`;
-    error = createError(message, 404);
-  }
-
-  // Mongoose duplicate key
-  if (err.code === 11000) {
-    const field = Object.keys(err.keyValue)[0];
-    const message = `Дубликат поля "${field}": ${err.keyValue[field]}`;
-    error = createError(message, 400);
-  }
-
-  // Mongoose validation error
-  if (err.name === 'ValidationError') {
-    const message = Object.values(err.errors).map(val => val.message);
-    error = createError(message.join(', '), 400);
-  }
-
-  res.status(error.statusCode || 500).json({
+  res.status(statusCode).json({
     status: 'error',
-    message: error.message || 'Ошибка сервера',
+    message,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 };

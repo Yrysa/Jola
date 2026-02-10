@@ -22,13 +22,17 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, 'Пароль обязателен'],
-    minlength: [6, 'Пароль должен содержать минимум 6 символов'],
+    minlength: [8, 'Пароль должен содержать минимум 8 символов'],
     select: false,
   },
   role: {
     type: String,
     enum: ['user', 'admin'],
     default: 'user',
+  },
+  permissions: {
+    type: [String],
+    default: [],
   },
   avatarUrl: {
     type: String,
@@ -46,7 +50,23 @@ const userSchema = new mongoose.Schema({
   },
   isVerified: {
     type: Boolean,
-    default: true,
+    default: false,
+  },
+  verificationTokenHash: {
+    type: String,
+    select: false,
+  },
+  verificationTokenExpiresAt: {
+    type: Date,
+    select: false,
+  },
+  refreshTokenHash: {
+    type: String,
+    select: false,
+  },
+  refreshTokenExpiresAt: {
+    type: Date,
+    select: false,
   },
   lastLogin: {
     type: Date,
@@ -58,30 +78,34 @@ const userSchema = new mongoose.Schema({
   toObject: { virtuals: true },
 });
 
-// Хеширование пароля перед сохранением
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
-  
+
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
 
-// Метод для сравнения паролей
 userSchema.methods.matchPassword = async function(enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  return bcrypt.compare(enteredPassword, this.password);
 };
 
-// Генерация JWT токена
 userSchema.methods.getSignedJwtToken = function() {
   return jwt.sign(
-    { id: this._id, role: this.role },
+    { id: this._id, role: this.role, permissions: this.permissions },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE }
+    { expiresIn: process.env.JWT_EXPIRE || '15m' }
   );
 };
 
-// Обновление lastLogin при каждом логине
+userSchema.methods.getSignedRefreshToken = function() {
+  return jwt.sign(
+    { id: this._id, tokenType: 'refresh' },
+    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_REFRESH_EXPIRE || '7d' }
+  );
+};
+
 userSchema.methods.updateLastLogin = function() {
   this.lastLogin = Date.now();
   return this.save({ validateBeforeSave: false });

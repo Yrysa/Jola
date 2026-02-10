@@ -6,7 +6,7 @@ import {
   updateOrderStatus,
   getAllOrders,
 } from '../controllers/orderController.js';
-import { protect, admin } from '../middleware/authMiddleware.js';
+import { protect, requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -18,7 +18,7 @@ router.get('/myorders', getMyOrders);
 router.get('/:id', getOrderById);
 
 // Админ маршруты
-router.put('/:id/status', admin, updateOrderStatus);
-router.get('/', admin, getAllOrders);
+router.put('/:id/status', requireRole('admin'), updateOrderStatus);
+router.get('/', requireRole('admin'), getAllOrders);
 
 export default router;

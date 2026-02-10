@@ -1,4 +1,3 @@
-// client/src/context/AuthContext.jsx
 import { createContext, useContext, useReducer, useEffect } from 'react';
 import { authService } from '../services/authService.js';
 
@@ -19,12 +18,18 @@ function authReducer(state, action) {
       return { ...state, loading: true, error: null };
 
     case 'LOGIN_SUCCESS':
-    case 'REGISTER_SUCCESS':
     case 'LOAD_USER_SUCCESS':
       return {
         ...state,
         user: action.payload.user,
         token: action.payload.token,
+        loading: false,
+        error: null,
+      };
+
+    case 'REGISTER_SUCCESS':
+      return {
+        ...state,
         loading: false,
         error: null,
       };
@@ -68,7 +73,6 @@ function authReducer(state, action) {
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Если токен есть — подтягиваем пользователя с бэка
   useEffect(() => {
     if (state.token && !state.user) {
       loadUser();
@@ -79,7 +83,7 @@ export const AuthProvider = ({ children }) => {
   const loadUser = async () => {
     try {
       dispatch({ type: 'LOAD_USER_START' });
-      const data = await authService.getMe(); // { user }
+      const data = await authService.getMe();
       dispatch({
         type: 'LOAD_USER_SUCCESS',
         payload: { user: data.user, token: state.token },
@@ -96,11 +100,11 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       dispatch({ type: 'LOGIN_START' });
-      const data = await authService.login(email, password); // { user, token }
-      localStorage.setItem('token', data.token);
+      const data = await authService.login(email, password);
+      localStorage.setItem('token', data.accessToken);
       dispatch({
         type: 'LOGIN_SUCCESS',
-        payload: data,
+        payload: { user: data.user, token: data.accessToken },
       });
     } catch (error) {
       dispatch({
@@ -114,12 +118,9 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       dispatch({ type: 'REGISTER_START' });
-      const data = await authService.register(userData); // { user, token }
-      localStorage.setItem('token', data.token);
-      dispatch({
-        type: 'REGISTER_SUCCESS',
-        payload: data,
-      });
+      const data = await authService.register(userData);
+      dispatch({ type: 'REGISTER_SUCCESS' });
+      return data;
     } catch (error) {
       dispatch({
         type: 'REGISTER_FAIL',
@@ -129,7 +130,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch {
+      // no-op
+    }
     localStorage.removeItem('token');
     dispatch({ type: 'LOGOUT' });
   };
