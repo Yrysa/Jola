@@ -1,0 +1,59 @@
+/* Orders Page */
+.orders-page {
+  min-height: 100vh;
+  padding: 2rem 0;
+  background: var(--gradient-background);
+}
+
+.orders-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.orders-list {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.order-card {
+  display: block;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  text-decoration: none;
+  color: var(--color-text);
+  box-shadow: var(--shadow-small);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.order-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-medium);
+  border-color: var(--color-primary);
+}
+
+.order-card-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.order-id {
+  font-weight: 800;
+}
+
+.order-status {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.order-date {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  opacity: 0.9;
+}
