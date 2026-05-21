@@ -326,7 +326,8 @@
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.payment-help {
+.payment-help,
+.cash-confirmation-alert {
   margin-top: 0.9rem;
   padding: 0.95rem 1rem;
   border-radius: 18px;
@@ -336,6 +337,51 @@
 
 .payment-help--accent {
   border-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
+}
+
+.cash-confirmation-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border-color: color-mix(in srgb, #f59e0b 42%, var(--color-border));
+  background: color-mix(in srgb, #f59e0b 10%, var(--color-card-bg));
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+.cash-confirmation-alert svg {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.checkout-policy-card {
+  padding: 1rem 1.15rem;
+}
+
+.checkout-policy-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-weight: 800;
+  color: var(--color-text-secondary);
+}
+
+.checkout-policy-check input {
+  width: 20px;
+  height: 20px;
+  margin-top: 0.1rem;
+  accent-color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.checkout-policy-check a {
+  color: var(--color-primary);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.checkout-policy-check a:hover {
+  text-decoration: underline;
 }
 
 .checkout-kz-stack {
@@ -482,6 +528,12 @@
   border-radius: 18px;
   font-size: 1rem;
   font-weight: 900;
+}
+
+.btn-checkout-large:disabled,
+.checkout-mobile-hud__button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .checkout-mobile-hud {
