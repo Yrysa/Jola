@@ -18,15 +18,12 @@ const orderSchema = new mongoose.Schema({
     image: { type: String, default: '' },
   }],
 
-  
   serviceItems: [
     {
       serviceKey: { type: String, required: true },
       serviceTitle: { type: String, required: true },
       kind: { type: String, default: 'document_print' },
-      
       options: { type: mongoose.Schema.Types.Mixed, default: {} },
-      
       files: [
         {
           fileId: { type: mongoose.Schema.Types.ObjectId },
@@ -37,7 +34,6 @@ const orderSchema = new mongoose.Schema({
           pages: { type: Number, default: 1 },
         },
       ],
-      
       price: { type: Number, required: true, default: 0 },
       breakdown: { type: mongoose.Schema.Types.Mixed, default: {} },
     },
@@ -50,7 +46,7 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['card', 'stripe_card', 'cash', 'paypal', 'freedom_pay', 'kaspi'],
+    enum: ['card', 'stripe_card', 'cash'],
     default: 'stripe_card',
   },
   paymentResult: {
@@ -59,7 +55,6 @@ const orderSchema = new mongoose.Schema({
     update_time: String,
     email_address: String,
   },
-  
   itemsPrice: {
     type: Number,
     required: true,
@@ -111,7 +106,6 @@ const orderSchema = new mongoose.Schema({
   deliveredAt: {
     type: Date,
   },
-  
   deliveryWindow: {
     type: String,
     default: '1–2 дня',
@@ -134,7 +128,6 @@ const orderSchema = new mongoose.Schema({
     default: '',
     maxlength: [500, 'Комментарий админа не может быть длиннее 500 символов'],
   },
-  
   customerNote: {
     type: String,
     default: '',
@@ -172,11 +165,8 @@ const orderSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
-
-
 orderSchema.index({ 'serviceItems.serviceKey': 1 });
 
 export default mongoose.model('Order', orderSchema);
