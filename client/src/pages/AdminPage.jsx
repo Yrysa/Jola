@@ -1,18 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import {
+  FiArchive,
   FiBarChart2,
   FiCheckCircle,
   FiClock,
-  FiExternalLink,
+  FiCreditCard,
+  FiEdit3,
+  FiEye,
   FiLayers,
   FiPackage,
   FiPlus,
   FiRefreshCw,
   FiSearch,
   FiShoppingBag,
+  FiTag,
   FiTrash2,
   FiTruck,
+  FiXCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { productService } from '../services/productService.js';
@@ -27,382 +33,390 @@ const slugify = (str) => String(str || '')
   .trim()
   .toLowerCase()
   .replace(/\s+/g, '-')
-  .replace(/[^a-z0-9\-]/g, '')
+  .replace(/[^a-z0-9-]/g, '')
   .replace(/-+/g, '-')
   .replace(/^-|-$/g, '');
 
-const getStatusTone = (status) => {
-  if (status === 'delivered') return 'ok';
-  if (status === 'cancelled') return 'danger';
-  if (status === 'processing' || status === 'shipped') return 'info';
-  return 'warn';
+const statusTone = {
+  pending: 'warn',
+  confirmed: 'info',
+  processing: 'info',
+  shipped: 'info',
+  delivered: 'ok',
+  cancelled: 'danger',
 };
+
+const statusFlow = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+
+const paymentLabels = {
+  stripe_card: 'Stripe',
+  card: 'Stripe',
+  cash: 'Cash',
+};
+
+const emptyProduct = {
+  name: '',
+  brand: '',
+  price: '',
+  discount: 0,
+  stock: 10,
+  category: '',
+  imageUrls: '',
+  videoUrl: '',
+  description: '',
+  tags: '',
+  isFeatured: false,
+};
+
+function normalizeProductItems(data) {
+  if (Array.isArray(data?.products)) return data.products;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data)) return data;
+  return [];
+}
+
+function normalizeCategoryItems(data) {
+  if (Array.isArray(data?.categories)) return data.categories;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data)) return data;
+  return [];
+}
+
+function normalizeOrderItems(data) {
+  if (Array.isArray(data?.orders)) return data.orders;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data)) return data;
+  return [];
+}
 
 export default function AdminPage() {
   const queryClient = useQueryClient();
   const { i18n, t } = useTranslation();
   const isRu = (i18n.language || 'ru').toLowerCase().startsWith('ru');
-  const labels = useMemo(() => (
-    isRu
-      ? {
-          title: 'Админка Jola',
-          subtitle: 'Чистая панель для товаров, заказов и категорий без лишнего шума.',
-          tabs: { products: 'Товары', orders: 'Заказы', categories: 'Категории' },
-          stats: { products: 'Товаров', orders: 'Заказов', revenue: 'Оборот', pending: 'Ожидают' },
-          addProduct: 'Новый товар',
-          save: 'Сохранить',
-          saving: 'Сохраняю…',
-          productList: 'Текущий каталог',
-          emptyProducts: 'Пока нет товаров.',
-          ordersTitle: 'Управление заказами',
-          emptyOrders: 'Заказов пока нет.',
-          categoriesTitle: 'Категории каталога',
-          emptyCategories: 'Категорий пока нет.',
-          createCategory: 'Добавить категорию',
-          delete: 'Удалить',
-          update: 'Обновить',
-          note: 'Комментарий для заказа',
-          filterAll: 'Все',
-          filterPending: 'Активные',
-          filterDone: 'Доставленные',
-          filterCancelled: 'Отменённые',
-          confirmDeleteProduct: 'Удалить товар?',
-          confirmDeleteOrder: 'Удалить заказ?',
-          confirmDeleteCategory: 'Удалить категорию?',
-          fillRequired: 'Заполни обязательные поля',
-          name: 'Название',
-          brand: 'Бренд',
-          price: 'Цена',
-          category: 'Категория',
-          description: 'Описание',
-          image: 'Ссылки на изображения',
-          video: 'Видео-обзор',
-          stock: 'Остаток',
-          discount: 'Скидка',
-          tags: 'Теги',
-          featured: 'Показывать как хит',
-          key: 'Ключ',
-          nameRu: 'Название RU',
-          nameEn: 'Название EN',
-          orderSum: 'Сумма',
-          orderCreated: 'Создан',
-          customer: 'Клиент',
-          items: 'Позиций',
-          delivery: 'Доставка',
-          searchOrders: 'Поиск по заказу, email, клиенту',
-          sortNewest: 'Сначала новые',
-          sortOldest: 'Сначала старые',
-          sortHigh: 'Сумма: выше',
-          sortLow: 'Сумма: ниже',
-          openOrder: 'Открыть заказ',
-          orderDetails: 'Детали заказа',
-          timeline: 'История статусов',
-          noHistory: 'История пока пустая',
-          files: 'Файлы',
-          payment: 'Оплата',
-        }
-      : {
-          title: 'Jola Admin',
-          subtitle: 'A updated panel for products, orders, and categories with less clutter.',
-          tabs: { products: 'Products', orders: 'Orders', categories: 'Categories' },
-          stats: { products: 'Products', orders: 'Orders', revenue: 'Revenue', pending: 'Pending' },
-          addProduct: 'New product',
-          save: 'Save',
-          saving: 'Saving…',
-          productList: 'Current catalog',
-          emptyProducts: 'No products yet.',
-          ordersTitle: 'Order management',
-          emptyOrders: 'No orders yet.',
-          categoriesTitle: 'Catalog categories',
-          emptyCategories: 'No categories yet.',
-          createCategory: 'Create category',
-          delete: 'Delete',
-          update: 'Update',
-          note: 'Order note',
-          filterAll: 'All',
-          filterPending: 'Active',
-          filterDone: 'Delivered',
-          filterCancelled: 'Cancelled',
-          confirmDeleteProduct: 'Delete this product?',
-          confirmDeleteOrder: 'Delete this order?',
-          confirmDeleteCategory: 'Delete this category?',
-          fillRequired: 'Fill in the required fields',
-          name: 'Name',
-          brand: 'Brand',
-          price: 'Price',
-          category: 'Category',
-          description: 'Description',
-          image: 'Image URLs',
-          video: 'Video review',
-          stock: 'Stock',
-          discount: 'Discount',
-          tags: 'Tags',
-          featured: 'Show as featured',
-          key: 'Key',
-          nameRu: 'Name RU',
-          nameEn: 'Name EN',
-          orderSum: 'Total',
-          orderCreated: 'Created',
-          customer: 'Customer',
-          items: 'Items',
-          delivery: 'Delivery',
-          searchOrders: 'Search by order, email, customer',
-          sortNewest: 'Newest first',
-          sortOldest: 'Oldest first',
-          sortHigh: 'Total: high',
-          sortLow: 'Total: low',
-          openOrder: 'Open order',
-          orderDetails: 'Order details',
-          timeline: 'Status history',
-          noHistory: 'No history yet',
-          files: 'Files',
-          payment: 'Payment',
-        }
+
+  const text = useMemo(() => (
+    isRu ? {
+      title: 'Админ-панель Jola',
+      subtitle: 'Управление магазином: товары, заказы, категории и контроль оплаты в одном понятном интерфейсе.',
+      refresh: 'Обновить',
+      products: 'Товары',
+      orders: 'Заказы',
+      categories: 'Категории',
+      dashboard: 'Сводка',
+      newProduct: 'Создание товара',
+      productList: 'Каталог товаров',
+      productHint: 'Заполните основные данные, добавьте изображения и сразу отправьте товар в каталог.',
+      productListHint: 'Быстрый контроль цены, остатка, скидки и удаления.',
+      name: 'Название',
+      brand: 'Бренд',
+      price: 'Цена',
+      discount: 'Скидка',
+      stock: 'Остаток',
+      category: 'Категория',
+      images: 'Изображения',
+      video: 'Видео-обзор',
+      description: 'Описание',
+      tags: 'Теги',
+      featured: 'Показывать как хит',
+      save: 'Сохранить',
+      saving: 'Сохранение...',
+      delete: 'Удалить',
+      emptyProducts: 'Товаров пока нет.',
+      createCategory: 'Создание категории',
+      categoryList: 'Список категорий',
+      key: 'Ключ',
+      nameRu: 'Название RU',
+      nameEn: 'Название EN',
+      emptyCategories: 'Категорий пока нет.',
+      fillRequired: 'Заполните обязательные поля.',
+      confirmDeleteProduct: 'Удалить этот товар?',
+      confirmDeleteOrder: 'Удалить этот заказ?',
+      confirmDeleteCategory: 'Удалить эту категорию?',
+      productCreated: 'Товар добавлен.',
+      productDeleted: 'Товар удалён.',
+      categoryCreated: 'Категория добавлена.',
+      categoryDeleted: 'Категория удалена.',
+      orderUpdated: 'Заказ обновлён.',
+      orderDeleted: 'Заказ удалён.',
+      orderPanel: 'Управление заказами',
+      orderHint: 'Слева список заказов, справа детали выбранного заказа. Быстро меняйте статус, оплату и заметку администратора.',
+      searchOrder: 'Поиск по номеру, клиенту, email, городу',
+      all: 'Все',
+      active: 'Активные',
+      paid: 'Оплаченные',
+      delivered: 'Доставленные',
+      cancelled: 'Отменённые',
+      newest: 'Сначала новые',
+      oldest: 'Сначала старые',
+      totalHigh: 'Сумма: выше',
+      totalLow: 'Сумма: ниже',
+      totalOrders: 'Всего заказов',
+      revenue: 'Оборот',
+      activeOrders: 'Активные',
+      productsCount: 'Товаров',
+      noOrders: 'Заказов не найдено.',
+      customer: 'Клиент',
+      payment: 'Оплата',
+      shipping: 'Доставка',
+      items: 'Позиции',
+      note: 'Заметка администратора',
+      saveNote: 'Сохранить заметку',
+      open: 'Открыть',
+      orderDetails: 'Детали заказа',
+      orderTimeline: 'История статусов',
+      noTimeline: 'История пока пустая.',
+      customerNote: 'Комментарий клиента',
+      adminNote: 'Комментарий админа',
+      markPaid: 'Отметить оплаченным',
+      markUnpaid: 'Снять оплату',
+      orderNumber: 'Номер заказа',
+      mediaPreview: 'Предпросмотр медиа',
+      cover: 'Обложка',
+      noImage: 'Нет изображения',
+    } : {
+      title: 'Jola Admin Panel',
+      subtitle: 'Manage products, orders, categories, and payment control from one clear workspace.',
+      refresh: 'Refresh',
+      products: 'Products',
+      orders: 'Orders',
+      categories: 'Categories',
+      dashboard: 'Overview',
+      newProduct: 'Create product',
+      productList: 'Product catalog',
+      productHint: 'Fill in the product details, add media, and publish it to the catalog.',
+      productListHint: 'Quickly control price, stock, discount, and deletion.',
+      name: 'Name',
+      brand: 'Brand',
+      price: 'Price',
+      discount: 'Discount',
+      stock: 'Stock',
+      category: 'Category',
+      images: 'Images',
+      video: 'Video review',
+      description: 'Description',
+      tags: 'Tags',
+      featured: 'Show as featured',
+      save: 'Save',
+      saving: 'Saving...',
+      delete: 'Delete',
+      emptyProducts: 'No products yet.',
+      createCategory: 'Create category',
+      categoryList: 'Category list',
+      key: 'Key',
+      nameRu: 'Name RU',
+      nameEn: 'Name EN',
+      emptyCategories: 'No categories yet.',
+      fillRequired: 'Fill in the required fields.',
+      confirmDeleteProduct: 'Delete this product?',
+      confirmDeleteOrder: 'Delete this order?',
+      confirmDeleteCategory: 'Delete this category?',
+      productCreated: 'Product created.',
+      productDeleted: 'Product deleted.',
+      categoryCreated: 'Category created.',
+      categoryDeleted: 'Category deleted.',
+      orderUpdated: 'Order updated.',
+      orderDeleted: 'Order deleted.',
+      orderPanel: 'Order management',
+      orderHint: 'Orders are on the left and selected order details are on the right. Update status, payment, and admin note quickly.',
+      searchOrder: 'Search by number, customer, email, city',
+      all: 'All',
+      active: 'Active',
+      paid: 'Paid',
+      delivered: 'Delivered',
+      cancelled: 'Cancelled',
+      newest: 'Newest first',
+      oldest: 'Oldest first',
+      totalHigh: 'Total: high',
+      totalLow: 'Total: low',
+      totalOrders: 'Total orders',
+      revenue: 'Revenue',
+      activeOrders: 'Active',
+      productsCount: 'Products',
+      noOrders: 'No orders found.',
+      customer: 'Customer',
+      payment: 'Payment',
+      shipping: 'Shipping',
+      items: 'Items',
+      note: 'Admin note',
+      saveNote: 'Save note',
+      open: 'Open',
+      orderDetails: 'Order details',
+      orderTimeline: 'Status history',
+      noTimeline: 'No history yet.',
+      customerNote: 'Customer note',
+      adminNote: 'Admin note',
+      markPaid: 'Mark as paid',
+      markUnpaid: 'Mark as unpaid',
+      orderNumber: 'Order number',
+      mediaPreview: 'Media preview',
+      cover: 'Cover',
+      noImage: 'No image',
+    }
   ), [isRu]);
 
   const [activeTab, setActiveTab] = useState('products');
-  const [orderFilter, setOrderFilter] = useState('all');
+  const [productForm, setProductForm] = useState(emptyProduct);
+  const [categoryForm, setCategoryForm] = useState({ key: '', nameRu: '', nameEn: '' });
+  const [orderFilter, setOrderFilter] = useState('active');
   const [orderSearch, setOrderSearch] = useState('');
   const [orderSort, setOrderSort] = useState('newest');
   const [selectedOrderId, setSelectedOrderId] = useState('');
-  const [orderEdits, setOrderEdits] = useState({});
+  const [orderNotes, setOrderNotes] = useState({});
 
-  const { data: productsData, isLoading: productsLoading } = useQuery(['admin-products'], () => productService.getProducts({ page: 1, limit: 100 }));
-  const { data: ordersData, isLoading: ordersLoading } = useQuery(['admin-orders'], () => orderService.getAllOrders(), { refetchInterval: 5000 });
-  const { data: categoriesData, isLoading: categoriesLoading } = useQuery(['admin-categories'], () => categoryService.getCategories());
+  const { data: productsData, isLoading: productsLoading } = useQuery(
+    ['admin-products'],
+    () => productService.getProducts({ page: 1, limit: 60, sort: 'newest' })
+  );
+  const { data: ordersData, isLoading: ordersLoading } = useQuery(
+    ['admin-orders'],
+    () => orderService.getAllOrders(),
+    { refetchInterval: 12000 }
+  );
+  const { data: categoriesData, isLoading: categoriesLoading } = useQuery(
+    ['admin-categories'],
+    () => categoryService.getCategories()
+  );
 
-  const products = productsData?.products || [];
-  const orders = ordersData?.orders || [];
-  const categories = categoriesData?.categories || [];
+  const products = useMemo(() => normalizeProductItems(productsData), [productsData]);
+  const orders = useMemo(() => normalizeOrderItems(ordersData), [ordersData]);
+  const categories = useMemo(() => normalizeCategoryItems(categoriesData), [categoriesData]);
 
-  const createProductMutation = useMutation((payload) => productService.createProduct(payload), {
-    onSuccess: () => {
-      toast.success(isRu ? 'Товар добавлен' : 'Product created');
-      queryClient.invalidateQueries(['admin-products']);
-    },
-    onError: (error) => toast.error(error.message || 'Error'),
-  });
-
-  const deleteProductMutation = useMutation((id) => productService.deleteProduct(id), {
-    onSuccess: () => {
-      toast.success(isRu ? 'Товар удалён' : 'Product deleted');
-      queryClient.invalidateQueries(['admin-products']);
-    },
-    onError: (error) => toast.error(error.message || 'Error'),
-  });
-
-  const updateOrderMutation = useMutation(({ id, body }) => orderService.updateOrderStatus(id, body), {
-    onSuccess: () => {
-      toast.success(isRu ? 'Заказ обновлён' : 'Order updated');
-      queryClient.invalidateQueries(['admin-orders']);
-    },
-    onError: (error) => toast.error(error.message || 'Error'),
-  });
-
-  const deleteOrderMutation = useMutation((id) => orderService.deleteOrder(id), {
-    onSuccess: () => {
-      toast.success(isRu ? 'Заказ удалён' : 'Order deleted');
-      queryClient.invalidateQueries(['admin-orders']);
-    },
-    onError: (error) => toast.error(error.message || 'Error'),
-  });
-
-  const createCategoryMutation = useMutation((payload) => categoryService.createCategory(payload), {
-    onSuccess: () => {
-      toast.success(isRu ? 'Категория добавлена' : 'Category created');
-      queryClient.invalidateQueries(['admin-categories']);
-      queryClient.invalidateQueries(['admin-products']);
-      setCategoryForm({ key: '', nameRu: '', nameEn: '' });
-    },
-    onError: (error) => toast.error(error.message || 'Error'),
-  });
-
-  const deleteCategoryMutation = useMutation((id) => categoryService.deleteCategory(id), {
-    onSuccess: () => {
-      toast.success(isRu ? 'Категория удалена' : 'Category deleted');
-      queryClient.invalidateQueries(['admin-categories']);
-      queryClient.invalidateQueries(['admin-products']);
-    },
-    onError: (error) => toast.error(error.message || 'Error'),
-  });
-
-  const defaultCategoryKey = useMemo(() => categories[0]?.key || '', [categories]);
-
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    price: '',
-    category: '',
-    brand: '',
-    imageUrls: '',
-    videoUrl: '',
-    stock: 10,
-    discount: 0,
-    isFeatured: false,
-    tags: '',
-  });
+  const defaultCategory = categories[0]?.key || '';
+  const categoryKey = categoryForm.key || slugify(categoryForm.nameEn || categoryForm.nameRu);
 
   useEffect(() => {
-    if (categories.length && !form.category) {
-      setForm((prev) => ({ ...prev, category: defaultCategoryKey }));
+    if (!productForm.category && defaultCategory) {
+      setProductForm((prev) => ({ ...prev, category: defaultCategory }));
     }
-  }, [categories.length, defaultCategoryKey, form.category]);
+  }, [defaultCategory, productForm.category]);
 
-  const [categoryForm, setCategoryForm] = useState({ key: '', nameRu: '', nameEn: '' });
-  const autoCategoryKey = useMemo(() => slugify(categoryForm.nameEn || categoryForm.nameRu), [categoryForm.nameEn, categoryForm.nameRu]);
+  const invalidateAll = () => {
+    queryClient.invalidateQueries(['admin-products']);
+    queryClient.invalidateQueries(['admin-orders']);
+    queryClient.invalidateQueries(['admin-categories']);
+  };
 
-  const summary = useMemo(() => {
-    const revenue = orders.reduce((acc, order) => acc + Number(order.totalPrice || 0), 0);
-    const pending = orders.filter((order) => ['pending', 'confirmed', 'processing', 'shipped'].includes(String(order.status || 'pending'))).length;
+  const createProduct = useMutation((payload) => productService.createProduct(payload), {
+    onSuccess: () => {
+      toast.success(text.productCreated);
+      queryClient.invalidateQueries(['admin-products']);
+      setProductForm({ ...emptyProduct, category: defaultCategory });
+    },
+    onError: (error) => toast.error(error?.message || 'Error'),
+  });
+
+  const deleteProduct = useMutation((id) => productService.deleteProduct(id), {
+    onSuccess: () => {
+      toast.success(text.productDeleted);
+      queryClient.invalidateQueries(['admin-products']);
+    },
+    onError: (error) => toast.error(error?.message || 'Error'),
+  });
+
+  const createCategory = useMutation((payload) => categoryService.createCategory(payload), {
+    onSuccess: () => {
+      toast.success(text.categoryCreated);
+      queryClient.invalidateQueries(['admin-categories']);
+      setCategoryForm({ key: '', nameRu: '', nameEn: '' });
+    },
+    onError: (error) => toast.error(error?.message || 'Error'),
+  });
+
+  const deleteCategory = useMutation((id) => categoryService.deleteCategory(id), {
+    onSuccess: () => {
+      toast.success(text.categoryDeleted);
+      queryClient.invalidateQueries(['admin-categories']);
+    },
+    onError: (error) => toast.error(error?.message || 'Error'),
+  });
+
+  const updateOrder = useMutation(({ id, body }) => orderService.updateOrderStatus(id, body), {
+    onSuccess: () => {
+      toast.success(text.orderUpdated);
+      queryClient.invalidateQueries(['admin-orders']);
+    },
+    onError: (error) => toast.error(error?.message || 'Error'),
+  });
+
+  const deleteOrder = useMutation((id) => orderService.deleteOrder(id), {
+    onSuccess: () => {
+      toast.success(text.orderDeleted);
+      queryClient.invalidateQueries(['admin-orders']);
+    },
+    onError: (error) => toast.error(error?.message || 'Error'),
+  });
+
+  const stats = useMemo(() => {
+    const activeOrders = orders.filter((order) => ['pending', 'confirmed', 'processing', 'shipped'].includes(order.status)).length;
+    const revenue = orders.reduce((sum, order) => sum + Number(order.totalPrice || 0), 0);
     return {
-      revenue,
-      pending,
       products: products.length,
       orders: orders.length,
+      revenue,
+      activeOrders,
     };
   }, [orders, products]);
 
-  const orderStageSummary = useMemo(() => ({
-    active: orders.filter((order) => ['pending', 'confirmed', 'processing', 'shipped'].includes(String(order.status || 'pending'))).length,
-    delivered: orders.filter((order) => String(order.status) === 'delivered').length,
-    cancelled: orders.filter((order) => String(order.status) === 'cancelled').length,
-    paid: orders.filter((order) => Boolean(order.isPaid)).length,
-  }), [orders]);
+  const productImages = useMemo(() => String(productForm.imageUrls || '')
+    .split(/\r?\n|,|;/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 12), [productForm.imageUrls]);
+
+  const categoryName = (key) => {
+    const found = categories.find((category) => category.key === key || category.name === key);
+    if (!found) return key || '—';
+    return isRu ? (found.nameRu || found.name || found.key) : (found.nameEn || found.name || found.key);
+  };
+
+  const orderNumber = (order) => order?.orderNumber || `JOLA-${String(order?._id || '').slice(-6).toUpperCase()}`;
+
+  const orderStatusLabel = (status) => t(`orderStatuses.${status}`, { defaultValue: status });
 
   const filteredOrders = useMemo(() => {
-    const search = String(orderSearch || '').trim().toLowerCase();
-    let nextOrders = [...orders];
+    const query = orderSearch.trim().toLowerCase();
+    let next = [...orders];
 
-    if (orderFilter === 'done') nextOrders = nextOrders.filter((o) => String(o.status) === 'delivered');
-    if (orderFilter === 'cancelled') nextOrders = nextOrders.filter((o) => String(o.status) === 'cancelled');
-    if (orderFilter === 'pending') nextOrders = nextOrders.filter((o) => ['pending', 'confirmed', 'processing', 'shipped'].includes(String(o.status || 'pending')));
-
-    if (search) {
-      nextOrders = nextOrders.filter((order) => {
-        const haystack = [
-          order._id,
-          order.user?.name,
-          order.user?.email,
-          order.shippingAddress?.city,
-          order.customerNote,
-          order.adminNote,
-        ]
-          .map((value) => String(value || '').toLowerCase())
-          .join(' ');
-        return haystack.includes(search);
-      });
+    if (orderFilter === 'active') {
+      next = next.filter((order) => ['pending', 'confirmed', 'processing', 'shipped'].includes(order.status));
+    }
+    if (orderFilter === 'paid') {
+      next = next.filter((order) => Boolean(order.isPaid));
+    }
+    if (orderFilter === 'delivered') {
+      next = next.filter((order) => order.status === 'delivered');
+    }
+    if (orderFilter === 'cancelled') {
+      next = next.filter((order) => order.status === 'cancelled');
     }
 
-    nextOrders.sort((a, b) => {
+    if (query) {
+      next = next.filter((order) => [
+        orderNumber(order),
+        order._id,
+        order.user?.name,
+        order.user?.email,
+        order.user?.phone,
+        order.shippingAddress?.city,
+        order.shippingAddress?.street,
+        order.customerNote,
+        order.adminNote,
+      ].map((value) => String(value || '').toLowerCase()).join(' ').includes(query));
+    }
+
+    next.sort((a, b) => {
       if (orderSort === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt);
       if (orderSort === 'total-high') return Number(b.totalPrice || 0) - Number(a.totalPrice || 0);
       if (orderSort === 'total-low') return Number(a.totalPrice || 0) - Number(b.totalPrice || 0);
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
-    return nextOrders;
+    return next;
   }, [orderFilter, orderSearch, orderSort, orders]);
 
   const selectedOrder = useMemo(() => (
     filteredOrders.find((order) => String(order._id) === String(selectedOrderId)) || filteredOrders[0] || null
   ), [filteredOrders, selectedOrderId]);
-
-  const mediaPreview = useMemo(() => {
-    const images = String(form.imageUrls || '')
-      .split(/\r?\n|,|;/)
-      .map((item) => String(item || '').trim())
-      .filter(Boolean)
-      .slice(0, 12);
-    const video = String(form.videoUrl || '').trim();
-    return { images, video };
-  }, [form.imageUrls, form.videoUrl]);
-
-  const categoryLabel = (categoryKey) => {
-    const match = categories.find((item) => item.key === categoryKey || item.name === categoryKey);
-    if (!match) return categoryKey || '—';
-    return isRu ? (match.nameRu || match.name || match.key) : (match.nameEn || match.name || match.key);
-  };
-
-  const handleProductChange = (event) => {
-    const { name, value, type, checked } = event.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
-  };
-
-  const handleCreateProduct = (event) => {
-    event.preventDefault();
-    if (!form.name || !form.price || !form.description || !form.brand || !form.imageUrls || !form.category) {
-      toast.error(labels.fillRequired);
-      return;
-    }
-
-    createProductMutation.mutate({
-      name: form.name,
-      description: form.description,
-      price: Number(form.price),
-      category: form.category,
-      brand: form.brand,
-      imageUrls: form.imageUrls,
-      videoUrl: form.videoUrl,
-      stock: Number(form.stock),
-      discount: Number(form.discount) || 0,
-      isFeatured: form.isFeatured,
-      tags: form.tags ? form.tags.split(',').map((item) => item.trim()).filter(Boolean) : [],
-    }, {
-      onSuccess: () => {
-        setForm({
-          name: '',
-          description: '',
-          price: '',
-          category: defaultCategoryKey,
-          brand: '',
-          imageUrls: '',
-    videoUrl: '',
-          stock: 10,
-          discount: 0,
-          isFeatured: false,
-          tags: '',
-        });
-      },
-    });
-  };
-
-  const handleDeleteProduct = (id) => {
-    if (!window.confirm(labels.confirmDeleteProduct)) return;
-    deleteProductMutation.mutate(id);
-  };
-
-  const handleCreateCategory = (event) => {
-    event.preventDefault();
-    const payload = {
-      key: String(categoryForm.key || autoCategoryKey || '').trim(),
-      nameRu: String(categoryForm.nameRu || '').trim(),
-      nameEn: String(categoryForm.nameEn || '').trim(),
-    };
-
-    if (!payload.key || !payload.nameRu || !payload.nameEn) {
-      toast.error(labels.fillRequired);
-      return;
-    }
-
-    createCategoryMutation.mutate(payload);
-  };
-
-  const handleDeleteCategory = (id) => {
-    if (!window.confirm(labels.confirmDeleteCategory)) return;
-    deleteCategoryMutation.mutate(id);
-  };
-
-  const setOrderField = (orderId, patch) => {
-    setOrderEdits((prev) => ({ ...prev, [orderId]: { ...(prev[orderId] || {}), ...patch } }));
-  };
-
-  const getOrderField = (order, fieldName) => {
-    return orderEdits[order._id]?.[fieldName] ?? order[fieldName] ?? '';
-  };
-
 
   useEffect(() => {
     if (!filteredOrders.length) {
@@ -414,541 +428,507 @@ export default function AdminPage() {
     }
   }, [filteredOrders, selectedOrderId]);
 
+  const updateProductField = (event) => {
+    const { name, value, checked, type } = event.target;
+    setProductForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  };
+
+  const submitProduct = (event) => {
+    event.preventDefault();
+    if (!productForm.name || !productForm.brand || !productForm.price || !productForm.category || !productForm.description || !productForm.imageUrls) {
+      toast.error(text.fillRequired);
+      return;
+    }
+
+    createProduct.mutate({
+      name: productForm.name,
+      brand: productForm.brand,
+      price: Number(productForm.price),
+      discount: Number(productForm.discount || 0),
+      stock: Number(productForm.stock || 0),
+      category: productForm.category,
+      imageUrls: productForm.imageUrls,
+      videoUrl: productForm.videoUrl,
+      description: productForm.description,
+      tags: productForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+      isFeatured: Boolean(productForm.isFeatured),
+    });
+  };
+
+  const submitCategory = (event) => {
+    event.preventDefault();
+    const payload = {
+      key: categoryKey,
+      nameRu: categoryForm.nameRu.trim(),
+      nameEn: categoryForm.nameEn.trim(),
+    };
+    if (!payload.key || !payload.nameRu || !payload.nameEn) {
+      toast.error(text.fillRequired);
+      return;
+    }
+    createCategory.mutate(payload);
+  };
+
+  const removeProduct = (id) => {
+    if (window.confirm(text.confirmDeleteProduct)) deleteProduct.mutate(id);
+  };
+
+  const removeCategory = (id) => {
+    if (window.confirm(text.confirmDeleteCategory)) deleteCategory.mutate(id);
+  };
+
+  const removeOrder = (id) => {
+    if (window.confirm(text.confirmDeleteOrder)) deleteOrder.mutate(id);
+  };
+
+  const setOrderStatus = (order, status) => {
+    updateOrder.mutate({ id: order._id, body: { status } });
+  };
+
+  const setOrderPaid = (order, value) => {
+    updateOrder.mutate({ id: order._id, body: { isPaid: value } });
+  };
+
   const saveOrderNote = (order) => {
-    updateOrderMutation.mutate({ id: order._id, body: { adminNote: String(getOrderField(order, 'adminNote')).slice(0, 500) } });
+    updateOrder.mutate({
+      id: order._id,
+      body: { adminNote: String(orderNotes[order._id] ?? order.adminNote ?? '').slice(0, 500) },
+    });
   };
 
-  const setOrderStatus = (orderId, status) => {
-    updateOrderMutation.mutate({ id: orderId, body: { status } });
-  };
+  const renderProducts = () => (
+    <section className="admin-workspace admin-workspace--products">
+      <article className="admin-panel admin-panel--form">
+        <div className="admin-panel__head">
+          <div>
+            <span><FiPlus /> {text.products}</span>
+            <h2>{text.newProduct}</h2>
+            <p>{text.productHint}</p>
+          </div>
+        </div>
 
-  const handleDeleteOrder = (orderId) => {
-    if (!window.confirm(labels.confirmDeleteOrder)) return;
-    deleteOrderMutation.mutate(orderId);
-  };
+        <form className="admin-form" onSubmit={submitProduct}>
+          <div className="admin-form__grid admin-form__grid--2">
+            <label>
+              <span>{text.name} *</span>
+              <input name="name" value={productForm.name} onChange={updateProductField} />
+            </label>
+            <label>
+              <span>{text.brand} *</span>
+              <input name="brand" value={productForm.brand} onChange={updateProductField} />
+            </label>
+          </div>
+
+          <div className="admin-form__grid admin-form__grid--4">
+            <label>
+              <span>{text.price} *</span>
+              <input type="number" min="0" name="price" value={productForm.price} onChange={updateProductField} />
+            </label>
+            <label>
+              <span>{text.discount}</span>
+              <input type="number" min="0" max="99" name="discount" value={productForm.discount} onChange={updateProductField} />
+            </label>
+            <label>
+              <span>{text.stock}</span>
+              <input type="number" min="0" name="stock" value={productForm.stock} onChange={updateProductField} />
+            </label>
+            <label>
+              <span>{text.category} *</span>
+              <select name="category" value={productForm.category} onChange={updateProductField}>
+                <option value="">{isRu ? 'Выберите' : 'Choose'}</option>
+                {categories.map((category) => (
+                  <option key={category._id || category.key} value={category.key}>
+                    {isRu ? (category.nameRu || category.name || category.key) : (category.nameEn || category.name || category.key)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <label>
+            <span>{text.images} *</span>
+            <textarea
+              name="imageUrls"
+              rows={4}
+              value={productForm.imageUrls}
+              onChange={updateProductField}
+              placeholder={isRu ? 'Одна ссылка на строку или через запятую' : 'One URL per line or comma-separated'}
+            />
+          </label>
+
+          {productImages.length > 0 ? (
+            <div className="admin-media-preview">
+              <div className="admin-media-preview__title">
+                <strong>{text.mediaPreview}</strong>
+                <span>{productImages.length}</span>
+              </div>
+              <div className="admin-media-preview__grid">
+                {productImages.map((src, index) => (
+                  <div className="admin-media-preview__item" key={`${src}-${index}`}>
+                    <img src={src} alt={`preview-${index + 1}`} />
+                    <span>{index === 0 ? text.cover : `#${index + 1}`}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <label>
+            <span>{text.video}</span>
+            <input name="videoUrl" value={productForm.videoUrl} onChange={updateProductField} placeholder="https://" />
+          </label>
+
+          <label>
+            <span>{text.description} *</span>
+            <textarea name="description" rows={5} value={productForm.description} onChange={updateProductField} />
+          </label>
+
+          <div className="admin-form__grid admin-form__grid--2">
+            <label>
+              <span>{text.tags}</span>
+              <input name="tags" value={productForm.tags} onChange={updateProductField} placeholder="premium, new, sale" />
+            </label>
+            <label className="admin-check">
+              <input type="checkbox" name="isFeatured" checked={productForm.isFeatured} onChange={updateProductField} />
+              <span>{text.featured}</span>
+            </label>
+          </div>
+
+          <button className="btn btn-primary admin-submit" type="submit" disabled={createProduct.isLoading}>
+            <FiPlus /> {createProduct.isLoading ? text.saving : text.save}
+          </button>
+        </form>
+      </article>
+
+      <article className="admin-panel">
+        <div className="admin-panel__head">
+          <div>
+            <span><FiPackage /> {text.productList}</span>
+            <h2>{text.productList}</h2>
+            <p>{text.productListHint}</p>
+          </div>
+        </div>
+
+        {products.length ? (
+          <div className="admin-product-list">
+            {products.map((product) => (
+              <article className="admin-product-card" key={product._id}>
+                {product.images?.[0] ? <img src={product.images[0]} alt={product.name} /> : <div className="admin-product-card__empty">{text.noImage}</div>}
+                <div className="admin-product-card__body">
+                  <div className="admin-product-card__top">
+                    <div>
+                      <h3>{product.brand} {product.name}</h3>
+                      <p>{categoryName(product.category)}</p>
+                    </div>
+                    <button type="button" className="admin-danger-icon" onClick={() => removeProduct(product._id)} aria-label={text.delete}>
+                      <FiTrash2 />
+                    </button>
+                  </div>
+                  <div className="admin-product-card__meta">
+                    <span>{formatPrice(product.price)}</span>
+                    <span>{text.stock}: {product.stock}</span>
+                    <span>{text.discount}: {product.discount || 0}%</span>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : <div className="admin-empty">{text.emptyProducts}</div>}
+      </article>
+    </section>
+  );
+
+  const renderOrders = () => (
+    <section className="admin-orders-layout">
+      <article className="admin-panel admin-orders-main">
+        <div className="admin-panel__head admin-panel__head--stack">
+          <div>
+            <span><FiShoppingBag /> {text.orders}</span>
+            <h2>{text.orderPanel}</h2>
+            <p>{text.orderHint}</p>
+          </div>
+          <div className="admin-order-tools">
+            <label className="admin-search">
+              <FiSearch />
+              <input value={orderSearch} onChange={(event) => setOrderSearch(event.target.value)} placeholder={text.searchOrder} />
+            </label>
+            <select value={orderSort} onChange={(event) => setOrderSort(event.target.value)}>
+              <option value="newest">{text.newest}</option>
+              <option value="oldest">{text.oldest}</option>
+              <option value="total-high">{text.totalHigh}</option>
+              <option value="total-low">{text.totalLow}</option>
+            </select>
+          </div>
+          <div className="admin-filter-row">
+            {[
+              ['all', text.all],
+              ['active', text.active],
+              ['paid', text.paid],
+              ['delivered', text.delivered],
+              ['cancelled', text.cancelled],
+            ].map(([key, label]) => (
+              <button key={key} type="button" className={orderFilter === key ? 'active' : ''} onClick={() => setOrderFilter(key)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filteredOrders.length ? (
+          <div className="admin-order-list">
+            {filteredOrders.map((order) => {
+              const active = String(order._id) === String(selectedOrder?._id);
+              const count = Number(order.orderItems?.length || 0) + Number(order.serviceItems?.length || 0);
+              return (
+                <button
+                  type="button"
+                  key={order._id}
+                  className={active ? 'admin-order-row active' : 'admin-order-row'}
+                  onClick={() => setSelectedOrderId(String(order._id))}
+                >
+                  <span className={`admin-status-dot admin-status-dot--${statusTone[order.status] || 'warn'}`} />
+                  <span className="admin-order-row__main">
+                    <strong>{orderNumber(order)}</strong>
+                    <small>{order.user?.name || order.user?.email || 'Client'} · {count} {text.items.toLowerCase()}</small>
+                  </span>
+                  <span className="admin-order-row__side">
+                    <strong>{formatPrice(order.totalPrice || 0)}</strong>
+                    <small>{orderStatusLabel(order.status || 'pending')}</small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : <div className="admin-empty">{text.noOrders}</div>}
+      </article>
+
+      <aside className="admin-panel admin-order-detail">
+        {selectedOrder ? (
+          <>
+            <div className="admin-order-detail__head">
+              <div>
+                <span>{text.orderDetails}</span>
+                <h2>{orderNumber(selectedOrder)}</h2>
+                <p>{new Date(selectedOrder.createdAt).toLocaleString(isRu ? 'ru-RU' : 'en-US')}</p>
+              </div>
+              <Link className="admin-detail-link" to={`/orders/${selectedOrder._id}`} target="_blank" rel="noreferrer">
+                <FiEye /> {text.open}
+              </Link>
+            </div>
+
+            <div className="admin-detail-grid">
+              <div>
+                <small>{text.customer}</small>
+                <strong>{selectedOrder.user?.name || '—'}</strong>
+                <span>{selectedOrder.user?.email || selectedOrder.user?.phone || '—'}</span>
+              </div>
+              <div>
+                <small>{text.payment}</small>
+                <strong>{paymentLabels[selectedOrder.paymentMethod] || selectedOrder.paymentMethod || '—'}</strong>
+                <span>{selectedOrder.isPaid ? (isRu ? 'Оплачен' : 'Paid') : (isRu ? 'Не оплачен' : 'Unpaid')}</span>
+              </div>
+              <div>
+                <small>{text.shipping}</small>
+                <strong>{selectedOrder.shippingAddress?.city || '—'}</strong>
+                <span>{selectedOrder.shippingAddress?.street || '—'}</span>
+              </div>
+              <div>
+                <small>{text.items}</small>
+                <strong>{formatPrice(selectedOrder.totalPrice || 0)}</strong>
+                <span>{selectedOrder.deliveryWindow || '—'}</span>
+              </div>
+            </div>
+
+            <div className="admin-status-actions">
+              {statusFlow.map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  className={selectedOrder.status === status ? 'active' : ''}
+                  onClick={() => setOrderStatus(selectedOrder, status)}
+                  disabled={updateOrder.isLoading}
+                >
+                  {orderStatusLabel(status)}
+                </button>
+              ))}
+            </div>
+
+            <div className="admin-payment-actions">
+              <button type="button" className={selectedOrder.isPaid ? 'active' : ''} onClick={() => setOrderPaid(selectedOrder, true)} disabled={updateOrder.isLoading}>
+                <FiCheckCircle /> {text.markPaid}
+              </button>
+              <button type="button" onClick={() => setOrderPaid(selectedOrder, false)} disabled={updateOrder.isLoading}>
+                <FiXCircle /> {text.markUnpaid}
+              </button>
+            </div>
+
+            <div className="admin-note-box">
+              <label>
+                <span>{text.note}</span>
+                <textarea
+                  rows={4}
+                  value={orderNotes[selectedOrder._id] ?? selectedOrder.adminNote ?? ''}
+                  onChange={(event) => setOrderNotes((prev) => ({ ...prev, [selectedOrder._id]: event.target.value }))}
+                />
+              </label>
+              <button type="button" className="btn btn-primary" onClick={() => saveOrderNote(selectedOrder)} disabled={updateOrder.isLoading}>
+                <FiEdit3 /> {text.saveNote}
+              </button>
+            </div>
+
+            {selectedOrder.customerNote ? (
+              <div className="admin-message-box">
+                <strong>{text.customerNote}</strong>
+                <p>{selectedOrder.customerNote}</p>
+              </div>
+            ) : null}
+
+            <div className="admin-order-items">
+              {[...(selectedOrder.orderItems || []), ...(selectedOrder.serviceItems || [])].map((item, index) => (
+                <div key={`${item._id || item.product || item.serviceKey}-${index}`}>
+                  <span>{item.name || item.serviceTitle || item.serviceKey}</span>
+                  <strong>{formatPrice(Number(item.price || 0) * Number(item.quantity || 1))}</strong>
+                </div>
+              ))}
+            </div>
+
+            <div className="admin-timeline">
+              <h3>{text.orderTimeline}</h3>
+              {selectedOrder.statusHistory?.length ? selectedOrder.statusHistory.map((item, index) => (
+                <div className="admin-timeline__item" key={`${item.status}-${item.at}-${index}`}>
+                  <span className={`admin-status-dot admin-status-dot--${statusTone[item.status] || 'warn'}`} />
+                  <div>
+                    <strong>{orderStatusLabel(item.status)}</strong>
+                    <small>{item.at ? new Date(item.at).toLocaleString(isRu ? 'ru-RU' : 'en-US') : '—'}</small>
+                    {item.note ? <p>{item.note}</p> : null}
+                  </div>
+                </div>
+              )) : <p className="admin-muted">{text.noTimeline}</p>}
+            </div>
+
+            <button type="button" className="admin-delete-order" onClick={() => removeOrder(selectedOrder._id)} disabled={deleteOrder.isLoading}>
+              <FiTrash2 /> {text.delete}
+            </button>
+          </>
+        ) : <div className="admin-empty">{text.noOrders}</div>}
+      </aside>
+    </section>
+  );
+
+  const renderCategories = () => (
+    <section className="admin-workspace admin-workspace--categories">
+      <article className="admin-panel admin-panel--form">
+        <div className="admin-panel__head">
+          <div>
+            <span><FiTag /> {text.categories}</span>
+            <h2>{text.createCategory}</h2>
+            <p>{isRu ? 'Категории помогают держать каталог понятным и быстрым для клиента.' : 'Categories keep the catalog clear and fast for customers.'}</p>
+          </div>
+        </div>
+
+        <form className="admin-form" onSubmit={submitCategory}>
+          <label>
+            <span>{text.nameRu} *</span>
+            <input value={categoryForm.nameRu} onChange={(event) => setCategoryForm((prev) => ({ ...prev, nameRu: event.target.value }))} />
+          </label>
+          <label>
+            <span>{text.nameEn} *</span>
+            <input value={categoryForm.nameEn} onChange={(event) => setCategoryForm((prev) => ({ ...prev, nameEn: event.target.value }))} />
+          </label>
+          <label>
+            <span>{text.key} *</span>
+            <input value={categoryForm.key || categoryKey} onChange={(event) => setCategoryForm((prev) => ({ ...prev, key: event.target.value }))} />
+          </label>
+          <button className="btn btn-primary admin-submit" type="submit" disabled={createCategory.isLoading}>
+            <FiPlus /> {createCategory.isLoading ? text.saving : text.save}
+          </button>
+        </form>
+      </article>
+
+      <article className="admin-panel">
+        <div className="admin-panel__head">
+          <div>
+            <span><FiLayers /> {text.categoryList}</span>
+            <h2>{text.categoryList}</h2>
+            <p>{categories.length} {isRu ? 'категорий' : 'categories'}</p>
+          </div>
+        </div>
+
+        {categories.length ? (
+          <div className="admin-category-list">
+            {categories.map((category) => (
+              <article className="admin-category-card" key={category._id || category.key}>
+                <div>
+                  <strong>{isRu ? (category.nameRu || category.name || category.key) : (category.nameEn || category.name || category.key)}</strong>
+                  <span>{category.key}</span>
+                </div>
+                <button type="button" className="admin-danger-icon" onClick={() => removeCategory(category._id)} aria-label={text.delete}>
+                  <FiTrash2 />
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : <div className="admin-empty">{text.emptyCategories}</div>}
+      </article>
+    </section>
+  );
 
   if (productsLoading || ordersLoading || categoriesLoading) {
     return <LoadingSpinner fullScreen />;
   }
 
   return (
-    <div className="admin-page admin-page--v2 admin-page--v3">
-      <div className="container admin-wrap">
+    <div className="admin-page">
+      <div className="container admin-container">
         <section className="admin-hero">
           <div>
-            <div className="admin-kicker">Jola Control</div>
-            <h1>{labels.title}</h1>
-            <p>{labels.subtitle}</p>
+            <div className="admin-kicker"><FiArchive /> {text.dashboard}</div>
+            <h1>{text.title}</h1>
+            <p>{text.subtitle}</p>
           </div>
-          <button type="button" className="admin-refresh" onClick={() => {
-            queryClient.invalidateQueries(['admin-products']);
-            queryClient.invalidateQueries(['admin-orders']);
-            queryClient.invalidateQueries(['admin-categories']);
-          }}>
-            <FiRefreshCw /> {isRu ? 'Обновить' : 'Refresh'}
+          <button type="button" className="admin-refresh" onClick={invalidateAll}>
+            <FiRefreshCw /> {text.refresh}
           </button>
         </section>
 
-        <section className="admin-stats-grid">
-          <article className="admin-stat-card">
-            <span className="admin-stat-icon"><FiPackage /></span>
-            <div>
-              <div className="admin-stat-label">{labels.stats.products}</div>
-              <div className="admin-stat-value">{summary.products}</div>
-            </div>
+        <section className="admin-stats">
+          <article>
+            <FiPackage />
+            <span>{text.productsCount}</span>
+            <strong>{stats.products}</strong>
           </article>
-          <article className="admin-stat-card">
-            <span className="admin-stat-icon"><FiShoppingBag /></span>
-            <div>
-              <div className="admin-stat-label">{labels.stats.orders}</div>
-              <div className="admin-stat-value">{summary.orders}</div>
-            </div>
+          <article>
+            <FiShoppingBag />
+            <span>{text.totalOrders}</span>
+            <strong>{stats.orders}</strong>
           </article>
-          <article className="admin-stat-card">
-            <span className="admin-stat-icon"><FiBarChart2 /></span>
-            <div>
-              <div className="admin-stat-label">{labels.stats.revenue}</div>
-              <div className="admin-stat-value">{formatPrice(summary.revenue)}</div>
-            </div>
+          <article>
+            <FiBarChart2 />
+            <span>{text.revenue}</span>
+            <strong>{formatPrice(stats.revenue)}</strong>
           </article>
-          <article className="admin-stat-card">
-            <span className="admin-stat-icon"><FiTruck /></span>
-            <div>
-              <div className="admin-stat-label">{labels.stats.pending}</div>
-              <div className="admin-stat-value">{summary.pending}</div>
-            </div>
+          <article>
+            <FiClock />
+            <span>{text.activeOrders}</span>
+            <strong>{stats.activeOrders}</strong>
           </article>
         </section>
 
-        <section className="admin-tabs admin-tabs--v2">
-          {['products', 'orders', 'categories'].map((tabKey) => (
-            <button
-              key={tabKey}
-              type="button"
-              className={activeTab === tabKey ? 'tab active' : 'tab'}
-              onClick={() => setActiveTab(tabKey)}
-            >
-              {labels.tabs[tabKey]}
+        <nav className="admin-nav" aria-label="Admin sections">
+          {[
+            ['products', FiPackage, text.products],
+            ['orders', FiShoppingBag, text.orders],
+            ['categories', FiLayers, text.categories],
+          ].map(([key, Icon, label]) => (
+            <button key={key} type="button" className={activeTab === key ? 'active' : ''} onClick={() => setActiveTab(key)}>
+              <Icon /> {label}
             </button>
           ))}
-        </section>
+        </nav>
 
-        {activeTab === 'products' ? (
-          <section className="admin-grid-layout">
-            <article className="admin-panel admin-panel--form">
-              <div className="admin-panel-head">
-                <div>
-                  <h2>{labels.addProduct}</h2>
-                  <p>{isRu ? 'Быстрый способ добавить товар в магазин.' : 'A faster way to add a product to the store.'}</p>
-                </div>
-              </div>
-
-              <form className="admin-form-modern" onSubmit={handleCreateProduct}>
-                <div className="admin-form-grid two">
-                  <label>
-                    <span>{labels.name} *</span>
-                    <input type="text" name="name" value={form.name} onChange={handleProductChange} />
-                  </label>
-                  <label>
-                    <span>{labels.brand} *</span>
-                    <input type="text" name="brand" value={form.brand} onChange={handleProductChange} />
-                  </label>
-                </div>
-
-                <div className="admin-form-grid four">
-                  <label>
-                    <span>{labels.price} *</span>
-                    <input type="number" name="price" min="0" value={form.price} onChange={handleProductChange} />
-                  </label>
-                  <label>
-                    <span>{labels.discount}</span>
-                    <input type="number" name="discount" min="0" max="99" value={form.discount} onChange={handleProductChange} />
-                  </label>
-                  <label>
-                    <span>{labels.stock}</span>
-                    <input type="number" name="stock" min="0" value={form.stock} onChange={handleProductChange} />
-                  </label>
-                  <label>
-                    <span>{labels.category} *</span>
-                    <select name="category" value={form.category} onChange={handleProductChange}>
-                      {categories.map((category) => (
-                        <option key={category._id} value={category.key}>{isRu ? (category.nameRu || category.name || category.key) : (category.nameEn || category.name || category.key)}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <label>
-                  <span>{labels.image} *</span>
-                  <textarea
-                    name="imageUrls"
-                    rows="4"
-                    value={form.imageUrls}
-                    onChange={handleProductChange}
-                    placeholder={isRu ? 'Одна ссылка на строку или через запятую. Можно 4–12 изображений.' : 'One URL per line or comma-separated. Supports 4–12 images.'}
-                  />
-                  <small className="admin-field-hint">{isRu ? 'Первое изображение станет обложкой. Остальные попадут в галерею товара.' : 'The first image becomes the card cover. The rest go into the product gallery.'}</small>
-                </label>
-
-                <label>
-                  <span>{labels.video}</span>
-                  <input
-                    type="url"
-                    name="videoUrl"
-                    value={form.videoUrl}
-                    onChange={handleProductChange}
-                    placeholder={isRu ? 'YouTube / mp4 / webm ссылка' : 'YouTube / mp4 / webm URL'}
-                  />
-                </label>
-
-                {(mediaPreview.images.length || mediaPreview.video) ? (
-                  <div className="admin-media-preview">
-                    <div className="admin-media-preview__head">
-                      <strong>{isRu ? 'Предпросмотр медиа' : 'Media preview'}</strong>
-                      <span>{isRu ? `${mediaPreview.images.length} фото${mediaPreview.video ? ' • есть видео' : ''}` : `${mediaPreview.images.length} images${mediaPreview.video ? ' • video added' : ''}`}</span>
-                    </div>
-                    {mediaPreview.images.length ? (
-                      <div className="admin-media-preview__grid">
-                        {mediaPreview.images.map((src, idx) => (
-                          <div key={`${src}-${idx}`} className="admin-media-preview__item">
-                            <img src={src} alt={`preview-${idx + 1}`} loading="lazy" />
-                            <span>{idx === 0 ? (isRu ? 'Обложка' : 'Cover') : `#${idx + 1}`}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                    {mediaPreview.video ? (
-                      <a className="admin-media-preview__video" href={mediaPreview.video} target="_blank" rel="noreferrer">
-                        {isRu ? 'Открыть видео-обзор' : 'Open video review'}
-                      </a>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                <label>
-                  <span>{labels.description} *</span>
-                  <textarea name="description" rows="5" value={form.description} onChange={handleProductChange} />
-                </label>
-
-                <div className="admin-form-grid two">
-                  <label>
-                    <span>{labels.tags}</span>
-                    <input type="text" name="tags" value={form.tags} onChange={handleProductChange} placeholder={isRu ? 'iphone, premium, 512gb' : 'iphone, premium, 512gb'} />
-                  </label>
-                  <label className="admin-checkbox-row">
-                    <input type="checkbox" name="isFeatured" checked={form.isFeatured} onChange={handleProductChange} />
-                    <span>{labels.featured}</span>
-                  </label>
-                </div>
-
-                <button type="submit" className="btn btn-primary" disabled={createProductMutation.isLoading}>
-                  <FiPlus /> {createProductMutation.isLoading ? labels.saving : labels.save}
-                </button>
-              </form>
-            </article>
-
-            <article className="admin-panel">
-              <div className="admin-panel-head">
-                <div>
-                  <h2>{labels.productList}</h2>
-                  <p>{products.length} {isRu ? 'позиций в каталоге' : 'items in the catalog'}</p>
-                </div>
-              </div>
-
-              {products.length === 0 ? (
-                <div className="admin-empty-state">{labels.emptyProducts}</div>
-              ) : (
-                <div className="admin-product-list">
-                  {products.map((product) => (
-                    <article key={product._id} className="admin-product-card">
-                      <img src={product.images?.[0] || '/placeholder-product.svg'} alt={product.name} />
-                      <div className="admin-product-card__content">
-                        <div className="admin-product-card__top">
-                          <div>
-                            <h3>{product.brand} {product.name}</h3>
-                            <p>{categoryLabel(product.category)}</p>
-                          </div>
-                          <button type="button" className="admin-icon-btn" onClick={() => handleDeleteProduct(product._id)} aria-label={labels.delete}>
-                            <FiTrash2 />
-                          </button>
-                        </div>
-                        <div className="admin-product-meta">
-                          <span>{formatPrice(product.price)}</span>
-                          <span>{labels.stock}: {product.stock}</span>
-                          <span>{labels.discount}: {product.discount || 0}%</span>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </article>
-          </section>
-        ) : null}
-
-        {activeTab === 'orders' ? (
-          <section className="admin-orders-shell">
-            <article className="admin-panel admin-orders-list-panel">
-              <div className="admin-panel-head admin-panel-head--stack">
-                <div>
-                  <h2>{labels.ordersTitle}</h2>
-                  <p>{isRu ? 'Теперь список заказов читается быстрее: фильтры, поиск, быстрые статусы и живая карточка деталей справа.' : 'Orders are easier to scan now: filters, search, quick statuses, and a live detail panel on the right.'}</p>
-                </div>
-                <div className="admin-orders-toolbar">
-                  <label className="admin-search-field">
-                    <FiSearch />
-                    <input
-                      type="search"
-                      value={orderSearch}
-                      onChange={(event) => setOrderSearch(event.target.value)}
-                      placeholder={labels.searchOrders}
-                    />
-                  </label>
-                  <select value={orderSort} onChange={(event) => setOrderSort(event.target.value)}>
-                    <option value="newest">{labels.sortNewest}</option>
-                    <option value="oldest">{labels.sortOldest}</option>
-                    <option value="total-high">{labels.sortHigh}</option>
-                    <option value="total-low">{labels.sortLow}</option>
-                  </select>
-                </div>
-                <div className="admin-filter-row">
-                  {[
-                    ['all', labels.filterAll],
-                    ['pending', labels.filterPending],
-                    ['done', labels.filterDone],
-                    ['cancelled', labels.filterCancelled],
-                  ].map(([key, label]) => (
-                    <button key={key} type="button" className={orderFilter === key ? 'admin-filter active' : 'admin-filter'} onClick={() => setOrderFilter(key)}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="admin-orders-overview">
-                <article className="admin-orders-overview__card">
-                  <small>{isRu ? 'Активные' : 'Active'}</small>
-                  <strong>{orderStageSummary.active}</strong>
-                  <span>{isRu ? 'требуют внимания' : 'need attention'}</span>
-                </article>
-                <article className="admin-orders-overview__card">
-                  <small>{isRu ? 'Оплаченные' : 'Paid'}</small>
-                  <strong>{orderStageSummary.paid}</strong>
-                  <span>{isRu ? 'можно быстро проверить' : 'ready to verify'}</span>
-                </article>
-                <article className="admin-orders-overview__card">
-                  <small>{isRu ? 'Доставленные' : 'Delivered'}</small>
-                  <strong>{orderStageSummary.delivered}</strong>
-                  <span>{isRu ? 'закрытых заказов' : 'closed successfully'}</span>
-                </article>
-                <article className="admin-orders-overview__card">
-                  <small>{isRu ? 'Отменённые' : 'Cancelled'}</small>
-                  <strong>{orderStageSummary.cancelled}</strong>
-                  <span>{isRu ? 'нужны для анализа' : 'worth reviewing'}</span>
-                </article>
-              </div>
-
-              {filteredOrders.length === 0 ? (
-                <div className="admin-empty-state">{labels.emptyOrders}</div>
-              ) : (
-                <div className="admin-order-list admin-order-list--enhanced">
-                  {filteredOrders.map((order) => {
-                    const status = String(order.status || 'pending');
-                    const idShort = String(order._id || '').slice(-6);
-                    const itemsCount = (order.orderItems?.length || 0) + (order.serviceItems?.length || 0);
-                    const isActive = String(selectedOrder?._id || '') === String(order._id);
-                    return (
-                      <article
-                        key={order._id}
-                        className={isActive ? 'admin-order-card admin-order-card--compact is-active' : 'admin-order-card admin-order-card--compact'}
-                        onClick={() => setSelectedOrderId(String(order._id))}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            setSelectedOrderId(String(order._id));
-                          }
-                        }}
-                      >
-                        <div className="admin-order-card__top">
-                          <div>
-                            <div className="admin-order-id">#{idShort}</div>
-                            <h3>{order.user?.name || '—'}</h3>
-                            <p>{order.user?.email || '—'}</p>
-                          </div>
-                          <div className={`admin-status-pill tone-${getStatusTone(status)}`}>
-                            {t(`orderStatuses.${status}`, { defaultValue: status })}
-                          </div>
-                        </div>
-
-                        <div className="admin-order-grid admin-order-grid--compact">
-                          <div>
-                            <span>{labels.orderSum}</span>
-                            <strong>{formatPrice(order.totalPrice)}</strong>
-                          </div>
-                          <div>
-                            <span>{labels.items}</span>
-                            <strong>{itemsCount}</strong>
-                          </div>
-                          <div>
-                            <span>{labels.payment}</span>
-                            <strong>{order.isPaid ? (isRu ? 'Оплачен' : 'Paid') : (isRu ? 'Ожидает' : 'Pending')}</strong>
-                          </div>
-                          <div>
-                            <span>{labels.orderCreated}</span>
-                            <strong>{new Date(order.createdAt).toLocaleDateString()}</strong>
-                          </div>
-                        </div>
-
-                        {order.customerNote ? <div className="admin-order-note admin-order-note--customer">{order.customerNote}</div> : null}
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </article>
-
-            <article className="admin-panel admin-order-detail-panel">
-              {!selectedOrder ? (
-                <div className="admin-empty-state">{labels.emptyOrders}</div>
-              ) : (
-                <>
-                  <div className="admin-panel-head admin-panel-head--stack">
-                    <div>
-                      <h2>{labels.orderDetails}</h2>
-                      <p>{isRu ? `Заказ #${String(selectedOrder._id).slice(-6)} · ${selectedOrder.user?.name || 'Клиент'}` : `Order #${String(selectedOrder._id).slice(-6)} · ${selectedOrder.user?.name || 'Customer'}`}</p>
-                    </div>
-                    <div className="admin-order-detail__meta">
-                      <div className={`admin-status-pill tone-${getStatusTone(String(selectedOrder.status || 'pending'))}`}>
-                        {t(`orderStatuses.${selectedOrder.status}`, { defaultValue: selectedOrder.status })}
-                      </div>
-                      <a href={`/orders/${selectedOrder._id}`} className="btn btn-secondary" target="_blank" rel="noreferrer">
-                        <FiExternalLink /> {labels.openOrder}
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="admin-order-grid">
-                    <div>
-                      <span>{labels.customer}</span>
-                      <strong>{selectedOrder.user?.name || '—'}</strong>
-                    </div>
-                    <div>
-                      <span>Email</span>
-                      <strong>{selectedOrder.user?.email || '—'}</strong>
-                    </div>
-                    <div>
-                      <span>{labels.orderSum}</span>
-                      <strong>{formatPrice(selectedOrder.totalPrice)}</strong>
-                    </div>
-                    <div>
-                      <span>{labels.delivery}</span>
-                      <strong>{selectedOrder.deliveryWindow || '—'}</strong>
-                    </div>
-                  </div>
-
-                  <div className="admin-order-actions admin-order-actions--status">
-                    {['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].map((nextStatus) => (
-                      <button key={nextStatus} type="button" className="btn btn-secondary" onClick={() => setOrderStatus(selectedOrder._id, nextStatus)}>
-                        {t(`orderStatuses.${nextStatus}`, { defaultValue: nextStatus })}
-                      </button>
-                    ))}
-                  </div>
-
-                  {selectedOrder.customerNote ? <div className="admin-order-note admin-order-note--customer">{selectedOrder.customerNote}</div> : null}
-
-                  <div className="admin-order-detail-section">
-                    <div className="admin-order-detail-section__head">
-                      <strong>{labels.timeline}</strong>
-                      <span><FiClock /> {Array.isArray(selectedOrder.statusHistory) ? selectedOrder.statusHistory.length : 0}</span>
-                    </div>
-                    <div className="admin-order-timeline">
-                      {(selectedOrder.statusHistory || []).length ? (
-                        (selectedOrder.statusHistory || []).slice().reverse().map((entry, idx) => (
-                          <div key={`${entry.status}-${entry.at}-${idx}`} className="admin-order-timeline__item">
-                            <span className={`admin-order-timeline__dot tone-${getStatusTone(entry.status)}`} />
-                            <div>
-                              <strong>{t(`orderStatuses.${entry.status}`, { defaultValue: entry.status })}</strong>
-                              <p>{entry.note || (isRu ? 'Статус обновлён' : 'Status updated')}</p>
-                              <small>{entry.at ? new Date(entry.at).toLocaleString() : '—'}</small>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="admin-empty-state">{labels.noHistory}</div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="admin-order-detail-section">
-                    <div className="admin-order-detail-section__head">
-                      <strong>{labels.files}</strong>
-                      <span>{(selectedOrder.serviceItems || []).reduce((acc, item) => acc + (item.files?.length || 0), 0)}</span>
-                    </div>
-                    {(selectedOrder.serviceItems || []).length ? (
-                      <div className="admin-order-service-list">
-                        {(selectedOrder.serviceItems || []).map((service, index) => (
-                          <div key={`${service.serviceKey}-${index}`} className="admin-order-service-card">
-                            <div className="admin-order-service-card__head">
-                              <strong>{service.serviceTitle}</strong>
-                              <span>{formatPrice(service.price)}</span>
-                            </div>
-                            <p>{service.files?.length || 0} {isRu ? 'файлов' : 'files'} · {service.options?.copies || 1} {isRu ? 'копий' : 'copies'}</p>
-                            <ul>
-                              {(service.files || []).slice(0, 5).map((file) => (
-                                <li key={String(file.fileId || file.url || file.originalName)}>
-                                  {file.url ? <a href={file.url} target="_blank" rel="noreferrer">{file.originalName}</a> : <span>{file.originalName}</span>}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="admin-empty-state">{isRu ? 'В этом заказе нет загруженных файлов.' : 'This order has no uploaded files.'}</div>
-                    )}
-                  </div>
-
-                  <div className="admin-order-footer">
-                    <textarea
-                      rows="4"
-                      value={getOrderField(selectedOrder, 'adminNote')}
-                      onChange={(event) => setOrderField(selectedOrder._id, { adminNote: event.target.value })}
-                      placeholder={labels.note}
-                    />
-                    <div className="admin-order-footer__buttons">
-                      <button type="button" className="btn btn-primary" onClick={() => saveOrderNote(selectedOrder)}>
-                        <FiCheckCircle /> {labels.update}
-                      </button>
-                      <button type="button" className="btn btn-danger" onClick={() => handleDeleteOrder(selectedOrder._id)}>
-                        <FiTrash2 /> {labels.delete}
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </article>
-          </section>
-        ) : null}
-
-        {activeTab === 'categories' ? (
-          <section className="admin-grid-layout admin-grid-layout--compact">
-            <article className="admin-panel admin-panel--form">
-              <div className="admin-panel-head">
-                <div>
-                  <h2>{labels.createCategory}</h2>
-                  <p>{isRu ? 'Держи категории короткими и понятными.' : 'Keep categories short and clear.'}</p>
-                </div>
-              </div>
-              <form className="admin-form-modern" onSubmit={handleCreateCategory}>
-                <div className="admin-form-grid two">
-                  <label>
-                    <span>{labels.nameRu} *</span>
-                    <input type="text" value={categoryForm.nameRu} onChange={(event) => setCategoryForm((prev) => ({ ...prev, nameRu: event.target.value }))} />
-                  </label>
-                  <label>
-                    <span>{labels.nameEn} *</span>
-                    <input type="text" value={categoryForm.nameEn} onChange={(event) => setCategoryForm((prev) => ({ ...prev, nameEn: event.target.value }))} />
-                  </label>
-                </div>
-                <label>
-                  <span>{labels.key} *</span>
-                  <input type="text" value={categoryForm.key} onChange={(event) => setCategoryForm((prev) => ({ ...prev, key: event.target.value }))} placeholder={autoCategoryKey || 'laptops'} />
-                </label>
-                <button type="submit" className="btn btn-primary" disabled={createCategoryMutation.isLoading}>
-                  <FiLayers /> {createCategoryMutation.isLoading ? labels.saving : labels.save}
-                </button>
-              </form>
-            </article>
-
-            <article className="admin-panel">
-              <div className="admin-panel-head">
-                <div>
-                  <h2>{labels.categoriesTitle}</h2>
-                  <p>{categories.length} {isRu ? 'категорий в каталоге' : 'categories in the catalog'}</p>
-                </div>
-              </div>
-              {categories.length === 0 ? (
-                <div className="admin-empty-state">{labels.emptyCategories}</div>
-              ) : (
-                <div className="admin-category-list">
-                  {categories.map((category) => (
-                    <article key={category._id} className="admin-category-card">
-                      <div>
-                        <strong>{isRu ? (category.nameRu || category.name || category.key) : (category.nameEn || category.name || category.key)}</strong>
-                        <span>{category.key}</span>
-                      </div>
-                      <button type="button" className="admin-icon-btn" onClick={() => handleDeleteCategory(category._id)} aria-label={labels.delete}>
-                        <FiTrash2 />
-                      </button>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </article>
-          </section>
-        ) : null}
+        {activeTab === 'products' ? renderProducts() : null}
+        {activeTab === 'orders' ? renderOrders() : null}
+        {activeTab === 'categories' ? renderCategories() : null}
       </div>
     </div>
   );
