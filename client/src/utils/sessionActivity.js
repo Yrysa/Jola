@@ -26,12 +26,13 @@ function getKey(userId) {
   return `${STORAGE_PREFIX}:${userId || 'guest'}`;
 }
 
-function detectBrowser(ua) {
-  if (/edg\
-  if (/opr\
-  if (/chrome\
-  if (/safari\
-  if (/firefox\
+function detectBrowser(ua = '') {
+  const value = String(ua || '').toLowerCase();
+  if (value.includes('edg/')) return 'Microsoft Edge';
+  if (value.includes('opr/') || value.includes('opera')) return 'Opera';
+  if (value.includes('firefox/')) return 'Firefox';
+  if (value.includes('chrome/') || value.includes('crios/')) return 'Chrome';
+  if (value.includes('safari/')) return 'Safari';
   return 'Unknown browser';
 }
 
