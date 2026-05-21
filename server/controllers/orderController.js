@@ -26,51 +26,6 @@ const getStripe = () => {
   return stripeClient;
 };
 
-const PAYMENT_PROVIDER_CONFIG = {
-  paypal: { envKey: 'PAYPAL_CHECKOUT_URL', provider: 'paypal' },
-  freedom_pay: { envKey: 'FREEDOMPAY_CHECKOUT_URL', provider: 'freedom_pay' },
-  kaspi: { envKey: 'KASPI_CHECKOUT_URL', provider: 'kaspi' },
-};
-
-const buildExternalPaymentSession = ({ paymentMethod, order, user, clientBaseUrl }) => {
-  const cfg = PAYMENT_PROVIDER_CONFIG[paymentMethod];
-  if (!cfg) return null;
-
-  const base = String(process.env[cfg.envKey] || '').trim();
-  if (!base) {
-    return {
-      provider: cfg.provider,
-      mode: 'manual',
-      message: `Настрой ${cfg.envKey} в .env, чтобы включить оплату через ${cfg.provider}`,
-    };
-  }
-
-  try {
-    const url = new URL(base);
-    url.searchParams.set('orderId', String(order._id));
-    url.searchParams.set('amount', String(round2(order.totalPrice)));
-    url.searchParams.set('currency', APP_CURRENCY);
-    url.searchParams.set('customerEmail', String(user?.email || ''));
-    const successBase = String(clientBaseUrl || process.env.CLIENT_URL || '').trim();
-    if (successBase) {
-      url.searchParams.set('successUrl', `${successBase}/orders/${order._id}?status=success`);
-      url.searchParams.set('cancelUrl', `${successBase}/orders/${order._id}?status=cancel`);
-    }
-
-    return {
-      provider: cfg.provider,
-      mode: 'redirect',
-      url: url.toString(),
-    };
-  } catch (error) {
-    return {
-      provider: cfg.provider,
-      mode: 'manual',
-      message: `Некорректный URL провайдера для ${cfg.provider}`,
-    };
-  }
-};
-
 const normalizeItems = (orderItems) => {
   return (orderItems || [])
     .map((item) => {
@@ -153,9 +108,10 @@ export const createOrder = async (req, res, next) => {
       return next(createError('Выберите способ оплаты', 400));
     }
 
-    const allowedPaymentMethods = new Set(['card', 'stripe_card', 'cash', 'paypal', 'freedom_pay', 'kaspi']);
-    if (!allowedPaymentMethods.has(String(paymentMethod))) {
-      return next(createError('Неподдерживаемый способ оплаты', 400));
+    const normalizedPaymentMethod = paymentMethod === 'card' ? 'stripe_card' : paymentMethod;
+    const allowedPaymentMethods = new Set(['stripe_card', 'cash']);
+    if (!allowedPaymentMethods.has(String(normalizedPaymentMethod))) {
+      return next(createError('Этот способ оплаты сейчас недоступен. Выберите Stripe или оплату наличными.', 400));
     }
 
     
@@ -264,8 +220,6 @@ export const createOrder = async (req, res, next) => {
     const taxPrice = round2(discountedItemsPrice * TAX_RATE);
     const totalPrice = round2(discountedItemsPrice + shippingPrice + taxPrice);
 
-    const normalizedPaymentMethod = paymentMethod === 'card' ? 'stripe_card' : paymentMethod;
-
     
     let order;
     try {
@@ -331,6 +285,11 @@ export const createOrder = async (req, res, next) => {
     if (normalizedPaymentMethod === 'cash') {
       try {
         await applyInventoryForOrder({ order, changedBy: req.user._id, reason: 'order_cash_created' });
+        order.customerNote = [
+          order.customerNote,
+          'Клиент выбрал оплату наличными. Заказ требует подтверждения через WhatsApp или Telegram.',
+        ].filter(Boolean).join('\n');
+        await order.save();
       } catch (e) {
         await cleanupOrderFiles(order._id).catch(() => {});
         await order.deleteOne().catch(() => {});
@@ -384,10 +343,6 @@ export const createOrder = async (req, res, next) => {
         console.error('⚠️ Stripe session create failed:', e?.message || e);
         paymentSession = null;
       }
-    }
-
-    if (!paymentSession && ['paypal', 'freedom_pay', 'kaspi'].includes(normalizedPaymentMethod)) {
-      paymentSession = buildExternalPaymentSession({ paymentMethod: normalizedPaymentMethod, order, user: req.user, clientBaseUrl });
     }
 
     
