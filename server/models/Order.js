@@ -1,6 +1,12 @@
 import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
+  orderNumber: {
+    type: String,
+    unique: true,
+    index: true,
+    trim: true,
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -17,7 +23,6 @@ const orderSchema = new mongoose.Schema({
     price: { type: Number, required: true },
     image: { type: String, default: '' },
   }],
-
   serviceItems: [
     {
       serviceKey: { type: String, required: true },
@@ -165,8 +170,18 @@ const orderSchema = new mongoose.Schema({
   timestamps: true,
 });
 
+orderSchema.pre('validate', function assignOrderNumber(next) {
+  if (!this.orderNumber) {
+    const year = new Date(this.createdAt || Date.now()).getFullYear();
+    const suffix = String(this._id || '').slice(-8).toUpperCase();
+    this.orderNumber = `JOLA-${year}-${suffix}`;
+  }
+  next();
+});
+
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
+orderSchema.index({ orderNumber: 1 });
 orderSchema.index({ 'serviceItems.serviceKey': 1 });
 
 export default mongoose.model('Order', orderSchema);
