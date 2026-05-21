@@ -13,8 +13,8 @@ export default function Footer() {
           <div className="site-footer__logo">Jola</div>
           <div className="site-footer__desc">
             {isRu
-              ? 'Магазин техники и полиграфии с более чистым интерфейсом, избранным и удобной отправкой файлов на печать.'
-              : 'A tech and print store with a updated interface, favorites, and a smoother way to send files to print.'}
+              ? 'Магазин техники и полиграфии с удобным каталогом, избранным и отправкой файлов на печать.'
+              : 'A tech and print store with a convenient catalog, favorites, and file submission for printing.'}
           </div>
           <div className="site-footer__security">
             <FiShield aria-hidden="true" />
@@ -51,7 +51,7 @@ export default function Footer() {
       <div className="site-footer__bottom">
         <div className="container site-footer__bottom-inner">
           <span>© {new Date().getFullYear()} Jola</span>
-          <span className="muted">{isRu ? 'Интерфейс обновлён и стал чище.' : 'The interface has been refreshed and cleaned up.'}</span>
+          <span className="muted">{isRu ? 'Каталог, заказы, оплата и печатные услуги в одном сервисе.' : 'Catalog, orders, payments, and print services in one place.'}</span>
         </div>
       </div>
     </footer>
