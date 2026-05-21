@@ -233,8 +233,8 @@ export default function ProductsPage() {
             <h1 className="catalog-title">{t('products.title')}</h1>
             <div className="catalog-sub">
               {isRu
-                ? 'Каталог стал чище: поиск, бренды, цена и наличие открываются в одном плавном меню сбоку.'
-                : 'The catalog is updated now: search, brands, price, and availability open inside one smooth side menu.'}
+                ? 'Находите нужные товары по категориям, брендам, цене и наличию в удобном меню каталога.'
+                : 'Find the right products by category, brand, price, and availability in one catalog menu.'}
             </div>
 
             <div className="catalog-highlights">
@@ -266,8 +266,8 @@ export default function ProductsPage() {
         </div>
 
         <div className="catalog-tip-line">
-          <span>{isRu ? 'Нажми на меню каталога, чтобы открыть все настройки.' : 'Tap the catalog menu to open all controls.'}</span>
-          <span>{isRu ? 'Поиск сверху больше не мешает просмотру.' : 'The top search bar no longer gets in the way.'}</span>
+          <span>{isRu ? 'Откройте меню каталога, чтобы настроить поиск и фильтры.' : 'Open the catalog menu to adjust search and filters.'}</span>
+          <span>{isRu ? 'Сортировка и фильтры помогают быстрее найти нужный товар.' : 'Sorting and filters help you find the right product faster.'}</span>
         </div>
 
         {summaryChips.length > 0 ? (
