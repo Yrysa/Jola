@@ -2,8 +2,11 @@ import express from 'express';
 import {
   getUserProfile,
   updateUserProfile,
+  changeUserPassword,
   getAllUsers,
   deleteUser,
+  createTelegramLink,
+  disconnectTelegram,
 } from '../controllers/userController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
@@ -11,11 +14,18 @@ const router = express.Router();
 
 router.use(protect);
 
-// Профиль пользователя
+
 router.get('/profile', getUserProfile);
 router.put('/profile', updateUserProfile);
 
-// Админ маршруты
+
+router.put('/password', changeUserPassword);
+
+
+router.post('/telegram/link', createTelegramLink);
+router.delete('/telegram/link', disconnectTelegram);
+
+
 router.get('/', admin, getAllUsers);
 router.delete('/:id', admin, deleteUser);
 

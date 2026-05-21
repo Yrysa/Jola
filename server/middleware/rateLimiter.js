@@ -1,9 +1,9 @@
 import rateLimit from 'express-rate-limit';
 
-// Rate limiter для аутентификации
+
 export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 минут
-  max: 15, // 5 попыток
+  windowMs: 15 * 60 * 1000,
+  max: 15,
   message: {
     status: 'error',
     message: 'Слишком много попыток входа. Попробуйте через 15 минут.',
@@ -12,7 +12,18 @@ export const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Rate limiter для API в целом
+export const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: {
+    status: 'error',
+    message: 'Слишком много запросов на восстановление пароля. Попробуйте позже.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,

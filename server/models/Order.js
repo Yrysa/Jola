@@ -17,6 +17,31 @@ const orderSchema = new mongoose.Schema({
     price: { type: Number, required: true },
     image: { type: String, default: '' },
   }],
+
+  
+  serviceItems: [
+    {
+      serviceKey: { type: String, required: true },
+      serviceTitle: { type: String, required: true },
+      kind: { type: String, default: 'document_print' },
+      
+      options: { type: mongoose.Schema.Types.Mixed, default: {} },
+      
+      files: [
+        {
+          fileId: { type: mongoose.Schema.Types.ObjectId },
+          originalName: { type: String, default: '' },
+          url: { type: String, default: '' },
+          size: { type: Number, default: 0 },
+          ext: { type: String, default: '' },
+          pages: { type: Number, default: 1 },
+        },
+      ],
+      
+      price: { type: Number, required: true, default: 0 },
+      breakdown: { type: mongoose.Schema.Types.Mixed, default: {} },
+    },
+  ],
   shippingAddress: {
     street: { type: String, required: true },
     city: { type: String, required: true },
@@ -25,8 +50,8 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['card', 'cash', 'paypal'],
-    default: 'card',
+    enum: ['card', 'stripe_card', 'cash', 'paypal', 'freedom_pay', 'kaspi'],
+    default: 'stripe_card',
   },
   paymentResult: {
     id: String,
@@ -34,7 +59,7 @@ const orderSchema = new mongoose.Schema({
     update_time: String,
     email_address: String,
   },
-  // сумма товаров (без доставки/налога)
+  
   itemsPrice: {
     type: Number,
     required: true,
@@ -55,6 +80,21 @@ const orderSchema = new mongoose.Schema({
     required: true,
     default: 0.0,
   },
+  promoDiscount: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  promo: {
+    code: { type: String, default: '' },
+    title: { type: String, default: '' },
+    type: { type: String, default: '' },
+    value: { type: Number, default: 0 },
+  },
+  inventoryApplied: {
+    type: Boolean,
+    default: false,
+  },
   isPaid: {
     type: Boolean,
     required: true,
@@ -71,17 +111,72 @@ const orderSchema = new mongoose.Schema({
   deliveredAt: {
     type: Date,
   },
+  
+  deliveryWindow: {
+    type: String,
+    default: '1–2 дня',
+  },
+  deliveryDays: {
+    type: Number,
+    min: 0,
+    default: 2,
+  },
+  expectedDeliveryDate: {
+    type: Date,
+  },
   status: {
     type: String,
-    enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'],
+    enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
     default: 'pending',
   },
+  adminNote: {
+    type: String,
+    default: '',
+    maxlength: [500, 'Комментарий админа не может быть длиннее 500 символов'],
+  },
+  
+  customerNote: {
+    type: String,
+    default: '',
+    maxlength: [500, 'Комментарий клиента не может быть длиннее 500 символов'],
+  },
+  statusHistory: [
+    {
+      status: {
+        type: String,
+        enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
+        required: true,
+      },
+      source: {
+        type: String,
+        default: 'system',
+        maxlength: 40,
+      },
+      actor: {
+        type: String,
+        default: '',
+        maxlength: 120,
+      },
+      note: {
+        type: String,
+        default: '',
+        maxlength: 500,
+      },
+      at: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
 }, {
   timestamps: true,
 });
 
-// Индексы для производительности
+
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
+
+
+orderSchema.index({ 'serviceItems.serviceKey': 1 });
 
 export default mongoose.model('Order', orderSchema);

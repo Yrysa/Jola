@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['user', 'client', 'manager', 'admin', 'observer'],
     default: 'user',
   },
   avatarUrl: {
@@ -52,13 +52,80 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  walletBalance: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  bonusBalance: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  personalDiscount: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100,
+  },
+
+  
+  resetPasswordToken: { type: String, select: false },
+  resetPasswordExpire: { type: Date, select: false },
+
+  
+  telegramUsername: {
+    type: String,
+    trim: true,
+    maxlength: 64,
+  },
+  telegramChatId: {
+    type: String,
+    trim: true,
+    select: false,
+  },
+  telegramLinkToken: {
+    type: String,
+    trim: true,
+    select: false,
+  },
+  telegramLinkTokenExpire: {
+    type: Date,
+    select: false,
+  },
+  telegramLinkedAt: {
+    type: Date,
+  },
+  telegramAuthTokenHash: {
+    type: String,
+    trim: true,
+    select: false,
+  },
+  telegramAuthTokenExpire: {
+    type: Date,
+    select: false,
+  },
+  telegramMiniFavoriteProductIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+  }],
+  telegramMiniRecentProductIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+  }],
+  telegramMiniLastAddress: {
+    street: { type: String, default: '' },
+    city: { type: String, default: '' },
+    zipCode: { type: String, default: '' },
+    country: { type: String, default: '' },
+  },
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true },
 });
 
-// Хеширование пароля перед сохранением
+
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   
@@ -67,12 +134,12 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
-// Метод для сравнения паролей
+
 userSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Генерация JWT токена
+
 userSchema.methods.getSignedJwtToken = function() {
   return jwt.sign(
     { id: this._id, role: this.role },
@@ -81,7 +148,7 @@ userSchema.methods.getSignedJwtToken = function() {
   );
 };
 
-// Обновление lastLogin при каждом логине
+
 userSchema.methods.updateLastLogin = function() {
   this.lastLogin = Date.now();
   return this.save({ validateBeforeSave: false });

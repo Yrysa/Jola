@@ -1,15 +1,20 @@
-// server/controllers/orderController.js
+
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import { createError } from '../middleware/errorHandler.js';
 import Stripe from 'stripe';
+import { notifyNewOrder, notifyOrderUpdated } from '../utils/notifications.js';
+import PrintService from '../modules/polygraphy/models/PrintService.js';
+import UploadFile from '../modules/polygraphy/models/UploadFile.js';
+import { calcDocumentPrint } from '../modules/polygraphy/pricing/documentPrint.js';
+import { TAX_RATE, FREE_SHIPPING_THRESHOLD, SHIPPING_FEE, APP_CURRENCY } from '../config/appConfig.js';
+import { appendOrderStatusHistory, applyInventoryForOrder, applyOrderStatusTransition, cleanupOrderFiles, moveUploadFilesToOrder, restockOrderInventory } from '../utils/orderLifecycle.js';
+import { resolveClientBaseUrl } from '../utils/originSecurity.js';
+import { evaluatePromoCode, normalizePromoCode } from '../utils/promocodes.js';
 
-// ===== Helpers =====
+
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
-const TAX_RATE = 0.08;
-const FREE_SHIPPING_THRESHOLD = 5000;
-const SHIPPING_FEE = 300;
 
 let stripeClient = null;
 const getStripe = () => {
@@ -19,6 +24,51 @@ const getStripe = () => {
     console.log('✅ Stripe инициализирован');
   }
   return stripeClient;
+};
+
+const PAYMENT_PROVIDER_CONFIG = {
+  paypal: { envKey: 'PAYPAL_CHECKOUT_URL', provider: 'paypal' },
+  freedom_pay: { envKey: 'FREEDOMPAY_CHECKOUT_URL', provider: 'freedom_pay' },
+  kaspi: { envKey: 'KASPI_CHECKOUT_URL', provider: 'kaspi' },
+};
+
+const buildExternalPaymentSession = ({ paymentMethod, order, user, clientBaseUrl }) => {
+  const cfg = PAYMENT_PROVIDER_CONFIG[paymentMethod];
+  if (!cfg) return null;
+
+  const base = String(process.env[cfg.envKey] || '').trim();
+  if (!base) {
+    return {
+      provider: cfg.provider,
+      mode: 'manual',
+      message: `Настрой ${cfg.envKey} в .env, чтобы включить оплату через ${cfg.provider}`,
+    };
+  }
+
+  try {
+    const url = new URL(base);
+    url.searchParams.set('orderId', String(order._id));
+    url.searchParams.set('amount', String(round2(order.totalPrice)));
+    url.searchParams.set('currency', APP_CURRENCY);
+    url.searchParams.set('customerEmail', String(user?.email || ''));
+    const successBase = String(clientBaseUrl || process.env.CLIENT_URL || '').trim();
+    if (successBase) {
+      url.searchParams.set('successUrl', `${successBase}/orders/${order._id}?status=success`);
+      url.searchParams.set('cancelUrl', `${successBase}/orders/${order._id}?status=cancel`);
+    }
+
+    return {
+      provider: cfg.provider,
+      mode: 'redirect',
+      url: url.toString(),
+    };
+  } catch (error) {
+    return {
+      provider: cfg.provider,
+      mode: 'manual',
+      message: `Некорректный URL провайдера для ${cfg.provider}`,
+    };
+  }
 };
 
 const normalizeItems = (orderItems) => {
@@ -41,16 +91,51 @@ const getEffectiveUnitPrice = (productDoc) => {
   return round2(price);
 };
 
-// @desc    Создать заказ
-// @route   POST /api/orders
-// @access  Private
+const computeExpectedDeliveryDate = ({ deliveryDays, deliveryWindow }) => {
+  const now = new Date();
+  
+  if (Number.isFinite(deliveryDays) && deliveryDays >= 0) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + Number(deliveryDays));
+    return d;
+  }
+  
+  const w = String(deliveryWindow || '').toLowerCase();
+  if (w.includes('сегодня')) {
+    const d = new Date(now);
+    d.setHours(18, 0, 0, 0);
+    return d;
+  }
+  if (w.includes('1') && w.includes('2')) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + 2);
+    return d;
+  }
+  
+  const d = new Date(now);
+  d.setDate(d.getDate() + 2);
+  return d;
+};
+
+
 export const createOrder = async (req, res, next) => {
   try {
-    const { orderItems, shippingAddress, paymentMethod } = req.body;
+    const {
+      orderItems,
+      serviceItems,
+      shippingAddress,
+      paymentMethod,
+      deliveryWindow,
+      deliveryDays,
+      expectedDeliveryDate,
+      customerNote,
+      promoCode,
+    } = req.body;
 
-    // Базовая валидация
+    
     const normalized = normalizeItems(orderItems);
-    if (!normalized.length) {
+    const incomingServices = Array.isArray(serviceItems) ? serviceItems : [];
+    if (!normalized.length && !incomingServices.length) {
       return next(createError('Корзина пуста', 400));
     }
 
@@ -68,9 +153,16 @@ export const createOrder = async (req, res, next) => {
       return next(createError('Выберите способ оплаты', 400));
     }
 
-    // 1) Берём товары из БД (а не доверяем price с фронта)
+    const allowedPaymentMethods = new Set(['card', 'stripe_card', 'cash', 'paypal', 'freedom_pay', 'kaspi']);
+    if (!allowedPaymentMethods.has(String(paymentMethod))) {
+      return next(createError('Неподдерживаемый способ оплаты', 400));
+    }
+
+    
     const ids = [...new Set(normalized.map((x) => x.productId))];
-    const products = await Product.find({ _id: { $in: ids } }).select('name price discount images stock');
+    const products = ids.length
+      ? await Product.find({ _id: { $in: ids } }).select('name price discount images stock')
+      : [];
     const productMap = new Map(products.map((p) => [String(p._id), p]));
 
     const missing = ids.filter((id) => !productMap.has(id));
@@ -78,7 +170,6 @@ export const createOrder = async (req, res, next) => {
       return next(createError('Некоторые товары не найдены или были удалены', 400));
     }
 
-    // 2) Считаем сумму и готовим orderItems из данных БД
     const computedItems = normalized.map(({ productId, quantity }) => {
       const p = productMap.get(productId);
       const unitPrice = getEffectiveUnitPrice(p);
@@ -92,7 +183,6 @@ export const createOrder = async (req, res, next) => {
       };
     });
 
-    // 3) Проверяем наличие на складе
     const outOfStock = computedItems.find((i) => i.quantity > i._stock);
     if (outOfStock) {
       return next(
@@ -103,87 +193,208 @@ export const createOrder = async (req, res, next) => {
       );
     }
 
-    const itemsPrice = round2(
+    const productsSubtotal = round2(
       computedItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
     );
-    const shippingPrice = round2(itemsPrice > FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE);
-    const taxPrice = round2(itemsPrice * TAX_RATE);
-    const totalPrice = round2(itemsPrice + shippingPrice + taxPrice);
 
-    // 4) Списываем остатки (атомарно на уровне документа)
-    //    Если какая-то позиция не обновилась (stock < qty), откатываем предыдущие.
-    const decremented = [];
-    for (const item of computedItems) {
-      const r = await Product.updateOne(
-        { _id: item.product, stock: { $gte: item.quantity } },
-        { $inc: { stock: -item.quantity } }
-      );
-      if (r.modifiedCount !== 1) {
-        // откат
-        for (const done of decremented) {
-          await Product.updateOne({ _id: done.product }, { $inc: { stock: done.quantity } });
-        }
-        return next(
-          createError(
-            `Недостаточно товара на складе: ${item.name} (попробуйте уменьшить количество)`,
-            400
-          )
-        );
+    
+    const computedServices = [];
+    let servicesSubtotal = 0;
+
+    for (const s of incomingServices) {
+      const serviceKey = String(s?.serviceKey || s?.key || '').trim();
+      const fileIds = Array.isArray(s?.fileIds) ? s.fileIds.map(String) : [];
+      const options = s?.options || {};
+      if (!serviceKey || !fileIds.length) {
+        return next(createError('Некорректная услуга печати: нет ключа или файлов', 400));
       }
-      decremented.push({ product: item.product, quantity: item.quantity });
-    }
 
-    // 5) Создаём заказ
+      const service = await PrintService.findOne({ key: serviceKey, isActive: true }).lean();
+      if (!service) return next(createError(`Услуга не найдена: ${serviceKey}`, 400));
+
+      const files = await UploadFile.find({
+        _id: { $in: fileIds },
+        owner: req.user._id,
+        scope: 'temp',
+      })
+        .select('originalName url size ext pages relPath')
+        .lean();
+
+      if (files.length !== fileIds.length) {
+        return next(createError('Часть файлов услуги не найдена (или уже оформлена)', 400));
+      }
+
+      let calc;
+      if (service.kind === 'document_print') {
+        calc = calcDocumentPrint({ pricing: service.pricing, files, options });
+      } else {
+        return next(createError('Эта услуга пока не поддерживается', 400));
+      }
+
+      const price = Number(calc.total || 0);
+      servicesSubtotal += price;
+
+      computedServices.push({
+        serviceKey: service.key,
+        serviceTitle: service.title,
+        kind: service.kind,
+        options,
+        files: files.map((f) => ({
+          fileId: f._id,
+          originalName: f.originalName,
+          url: f.url,
+          size: f.size,
+          ext: f.ext,
+          pages: f.pages,
+          _relPath: f.relPath, 
+        })),
+        price,
+        breakdown: calc.breakdown || {},
+      });
+    }
+    servicesSubtotal = round2(servicesSubtotal);
+
+    const itemsPrice = round2(productsSubtotal + servicesSubtotal);
+    const promoResult = normalizePromoCode(promoCode)
+      ? await evaluatePromoCode({ code: promoCode, userId: req.user._id, subtotal: itemsPrice })
+      : null;
+    const promoDiscount = round2(promoResult?.discount || 0);
+    const discountedItemsPrice = round2(Math.max(0, itemsPrice - promoDiscount));
+    const shippingPrice = round2(discountedItemsPrice > FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE);
+    const taxPrice = round2(discountedItemsPrice * TAX_RATE);
+    const totalPrice = round2(discountedItemsPrice + shippingPrice + taxPrice);
+
+    const normalizedPaymentMethod = paymentMethod === 'card' ? 'stripe_card' : paymentMethod;
+
+    
     let order;
     try {
+      const safeWindow = String(deliveryWindow || '1–2 дня').trim();
+      const safeDays = Number.isFinite(Number(deliveryDays)) ? Number(deliveryDays) : 2;
+      const expected = expectedDeliveryDate ? new Date(expectedDeliveryDate) : computeExpectedDeliveryDate({
+        deliveryDays: safeDays,
+        deliveryWindow: safeWindow,
+      });
+
       order = await Order.create({
         user: req.user._id,
         orderItems: computedItems.map(({ _stock, ...rest }) => rest),
+        serviceItems: computedServices.map(({ files, ...rest }) => ({
+          ...rest,
+          files: files.map(({ _relPath, ...f }) => f),
+        })),
         shippingAddress,
-        paymentMethod,
+        paymentMethod: normalizedPaymentMethod,
+        inventoryApplied: false,
         itemsPrice,
         taxPrice,
         shippingPrice,
         totalPrice,
+        promoDiscount,
+        promo: promoResult ? {
+          code: promoResult.promo.code,
+          title: promoResult.promo.title,
+          type: promoResult.promo.type,
+          value: promoResult.promo.value,
+        } : undefined,
         status: 'pending',
         isPaid: false,
         isDelivered: false,
+        deliveryWindow: safeWindow,
+        deliveryDays: safeDays,
+        expectedDeliveryDate: expected,
+        customerNote: typeof customerNote === 'string' ? customerNote.trim().slice(0, 500) : '',
+        statusHistory: [
+          {
+            status: 'pending',
+            source: 'checkout',
+            actor: String(req.user?._id || ''),
+            note: 'Заказ создан пользователем',
+          },
+        ],
       });
     } catch (e) {
-      // если заказ не создался — возвращаем остатки
-      for (const done of decremented) {
-        await Product.updateOne({ _id: done.product }, { $inc: { stock: done.quantity } });
-      }
       throw e;
     }
 
-    // 6) Stripe (если выбрали оплату картой)
+    
+    try {
+      if (computedServices.length) {
+        await moveUploadFilesToOrder({ order, userId: req.user._id });
+      }
+    } catch (e) {
+      await cleanupOrderFiles(order._id).catch(() => {});
+      await order.deleteOne().catch(() => {});
+      return next(createError(e?.message || 'Не удалось подготовить файлы заказа', e?.statusCode || 500));
+    }
+
+    if (normalizedPaymentMethod === 'cash') {
+      try {
+        await applyInventoryForOrder({ order, changedBy: req.user._id, reason: 'order_cash_created' });
+      } catch (e) {
+        await cleanupOrderFiles(order._id).catch(() => {});
+        await order.deleteOne().catch(() => {});
+        return next(e);
+      }
+    }
+
+    
     let paymentSession = null;
-    const stripe = paymentMethod === 'card' ? getStripe() : null;
-    if (paymentMethod === 'card' && stripe) {
+    const clientBaseUrl = resolveClientBaseUrl(req);
+    const stripe = normalizedPaymentMethod === 'stripe_card' ? getStripe() : null;
+    if (normalizedPaymentMethod === 'stripe_card' && stripe) {
       try {
         paymentSession = await stripe.checkout.sessions.create({
           payment_method_types: ['card'],
           mode: 'payment',
-          currency: 'kzt',
-          line_items: computedItems.map((item) => ({
-            price_data: {
-              currency: 'kzt',
-              product_data: { name: item.name },
-              // Stripe ждёт сумму в тыйынах -> * 100
-              unit_amount: Math.round(Number(item.price) * 100),
-            },
-            quantity: item.quantity,
-          })),
-          success_url: `${process.env.CLIENT_URL}/orders/${order._id}?status=success`,
-          cancel_url: `${process.env.CLIENT_URL}/orders/${order._id}?status=cancel`,
-          metadata: { orderId: String(order._id) },
+          currency: APP_CURRENCY,
+          line_items: [
+            ...computedItems.map((item) => ({
+              price_data: {
+                currency: APP_CURRENCY,
+                product_data: { name: item.name },
+                unit_amount: Math.round(Number(item.price) * 100),
+              },
+              quantity: item.quantity,
+            })),
+            ...computedServices.map((s) => ({
+              price_data: {
+                currency: APP_CURRENCY,
+                product_data: { name: `Услуга: ${s.serviceTitle}` },
+                unit_amount: Math.round(Number(s.price) * 100),
+              },
+              quantity: 1,
+            })),
+          ],
+          success_url: `${clientBaseUrl || process.env.CLIENT_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}&orderId=${order._id}`,
+          cancel_url: `${clientBaseUrl || process.env.CLIENT_URL}/checkout?cancelled=1&orderId=${order._id}`,
+          metadata: {
+            orderId: String(order._id),
+            provider: 'stripe_card',
+            userId: String(req.user._id),
+          },
         });
+
+        if (paymentSession) {
+          paymentSession.provider = 'stripe_card';
+          paymentSession.mode = 'redirect';
+        }
       } catch (e) {
-        // Не роняем оформление заказа из-за Stripe.
+        
         console.error('⚠️ Stripe session create failed:', e?.message || e);
         paymentSession = null;
       }
+    }
+
+    if (!paymentSession && ['paypal', 'freedom_pay', 'kaspi'].includes(normalizedPaymentMethod)) {
+      paymentSession = buildExternalPaymentSession({ paymentMethod: normalizedPaymentMethod, order, user: req.user, clientBaseUrl });
+    }
+
+    
+    try {
+      await notifyNewOrder({ order, paymentSession });
+    } catch (e) {
+      console.warn('⚠️ notifyNewOrder failed:', e?.message || e);
     }
 
     return res.status(201).json({
@@ -198,9 +409,7 @@ export const createOrder = async (req, res, next) => {
   }
 };
 
-// @desc    Получить заказы текущего пользователя
-// @route   GET /api/orders/myorders
-// @access  Private
+
 export const getMyOrders = async (req, res, next) => {
   try {
     const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
@@ -214,18 +423,16 @@ export const getMyOrders = async (req, res, next) => {
   }
 };
 
-// @desc    Получить заказ по ID
-// @route   GET /api/orders/:id
-// @access  Private
+
 export const getOrderById = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.id).populate('user', 'name email');
+    const order = await Order.findById(req.params.id).populate('user', 'name email phone role telegramUsername');
 
     if (!order) {
       return next(createError('Заказ не найден', 404));
     }
 
-    // Пользователь может видеть только свои заказы, админ — любые
+    
     if (String(order.user._id) !== String(req.user._id) && req.user.role !== 'admin') {
       return next(createError('Нет доступа к этому заказу', 403));
     }
@@ -239,23 +446,77 @@ export const getOrderById = async (req, res, next) => {
   }
 };
 
-// @desc    Обновить статус заказа (админ)
-// @route   PUT /api/orders/:id/status
-// @access  Admin
+
 export const updateOrderStatus = async (req, res, next) => {
   try {
-    const { status, isPaid, isDelivered } = req.body;
+    const {
+      status,
+      isPaid,
+      isDelivered,
+      adminNote,
+      deliveryWindow,
+      deliveryDays,
+      expectedDeliveryDate,
+    } = req.body;
 
     const order = await Order.findById(req.params.id);
     if (!order) {
       return next(createError('Заказ не найден', 404));
     }
 
-    if (status) order.status = status;
-    if (typeof isPaid === 'boolean') order.isPaid = isPaid;
-    if (typeof isDelivered === 'boolean') order.isDelivered = isDelivered;
+    if (status) {
+      await applyOrderStatusTransition({
+        order,
+        nextStatus: status,
+        changedBy: req.user._id,
+        source: 'admin_panel',
+        note: typeof adminNote === 'string' && adminNote.trim() ? adminNote.trim().slice(0, 500) : `Статус изменён администратором на ${String(status).trim()}`,
+        applyReason: 'order_paid_admin',
+        restockReason: 'order_cancelled',
+      });
+    }
+
+    if (typeof isPaid === 'boolean') {
+      order.isPaid = isPaid;
+      if (isPaid) order.paidAt = order.paidAt || new Date();
+    }
+    if (typeof isDelivered === 'boolean') {
+      order.isDelivered = isDelivered;
+      if (isDelivered) order.deliveredAt = order.deliveredAt || new Date();
+    }
+
+    if (typeof adminNote === 'string') {
+      order.adminNote = adminNote.slice(0, 500);
+    }
+
+    if (typeof deliveryWindow === 'string' && deliveryWindow.trim()) {
+      order.deliveryWindow = deliveryWindow.trim();
+    }
+    if (deliveryDays !== undefined) {
+      const d = Number(deliveryDays);
+      if (Number.isFinite(d) && d >= 0) order.deliveryDays = d;
+    }
+    if (expectedDeliveryDate) {
+      const dt = new Date(expectedDeliveryDate);
+      if (!Number.isNaN(dt.getTime())) order.expectedDeliveryDate = dt;
+    }
+
+    if (!status && typeof adminNote === 'string' && adminNote.trim()) {
+      appendOrderStatusHistory(order, {
+        status: order.status,
+        source: 'admin_note',
+        actor: String(req.user?._id || ''),
+        note: `Заметка обновлена: ${adminNote.trim().slice(0, 200)}`,
+      });
+    }
 
     await order.save();
+
+    
+    notifyOrderUpdated({
+      order,
+      message: `📦 Обновление по заказу #${String(order._id).slice(-6)}: статус ${order.status}`,
+    }).catch(() => {});
 
     res.json({
       status: 'success',
@@ -266,14 +527,35 @@ export const updateOrderStatus = async (req, res, next) => {
   }
 };
 
-// @desc    Получить все заказы (админ)
-// @route   GET /api/orders
-// @access  Admin
+
+export const deleteOrder = async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return next(createError('Заказ не найден', 404));
+    }
+
+    if (order.inventoryApplied) {
+      await restockOrderInventory({ order, changedBy: req.user._id, reason: 'order_deleted' });
+    }
+    await cleanupOrderFiles(order._id);
+    await order.deleteOne();
+
+    return res.json({
+      status: 'success',
+      data: { message: 'Заказ удалён' },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 export const getAllOrders = async (req, res, next) => {
   try {
     const orders = await Order.find()
       .sort({ createdAt: -1 })
-      .populate('user', 'name email')
+      .populate('user', 'name email phone role telegramUsername')
       .populate('orderItems.product', 'name');
 
     res.status(200).json({

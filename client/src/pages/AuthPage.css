@@ -1,4 +1,4 @@
-/* Auth (Login/Register) */
+
 .auth-page {
   min-height: 100vh;
   display: flex;
@@ -60,7 +60,7 @@
   align-items: center;
 }
 
-/* Старые иконки (почта/замок/пользователь) скрываем, даже если где-то остались */
+
 .input-icon {
   display: none !important;
 }

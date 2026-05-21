@@ -5,6 +5,7 @@ import {
   getOrderById,
   updateOrderStatus,
   getAllOrders,
+  deleteOrder,
 } from '../controllers/orderController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
@@ -12,13 +13,14 @@ const router = express.Router();
 
 router.use(protect);
 
-// Пользовательские маршруты
+
 router.post('/', createOrder);
 router.get('/myorders', getMyOrders);
 router.get('/:id', getOrderById);
 
-// Админ маршруты
+
 router.put('/:id/status', admin, updateOrderStatus);
+router.delete('/:id', admin, deleteOrder);
 router.get('/', admin, getAllOrders);
 
 export default router;

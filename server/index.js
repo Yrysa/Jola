@@ -1,136 +1,80 @@
-import './bootstrap/env.js';
-
-import express from 'express';
-import mongoose from 'mongoose';
-import cors from 'cors';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import mongoSanitize from 'express-mongo-sanitize';
-import xss from 'xss-clean';
+import fs from 'fs';
+import http from 'http';
+import https from 'https';
+import app from './app.js';
 import connectDB from './config/db.js';
-import hpp from 'hpp';
-import compression from 'compression';
-import morgan from 'morgan';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { startTelegramBot } from './utils/telegramBot.js';
+import { seedPolygraphyServices } from './modules/polygraphy/seed.js';
+import { startTempUploadsCleanup } from './utils/tempUploadCleanup.js';
 
-// Routes
-import authRoutes from './routes/authRoutes.js';
-import productRoutes from './routes/productRoutes.js';
-import orderRoutes from './routes/orderRoutes.js';
-import userRoutes from './routes/userRoutes.js';
+const PORT = process.env.PORT || 5000;
 
-// Middleware
-import { errorHandler } from './middleware/errorHandler.js';
+function createServer() {
+  const keyPath = process.env.HTTPS_KEY_PATH;
+  const certPath = process.env.HTTPS_CERT_PATH;
+  const useHttps = process.env.SERVER_HTTPS === 'true' && keyPath && certPath;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+  if (useHttps) {
+    try {
+      const key = fs.readFileSync(keyPath);
+      const cert = fs.readFileSync(certPath);
+      return {
+        server: https.createServer({ key, cert }, app),
+        protocol: 'https',
+      };
+    } catch (error) {
+      console.warn('HTTPS disabled:', error?.message || error);
+    }
+  }
 
-const app = express();
-
-// Безопасность: Helmet
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: [
-        "'self'",
-        process.env.CLIENT_URL || 'http://localhost:5173',
-      ].filter(Boolean),
-    },
-  },
-}));
-
-// CORS
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true,
-}));
-
-// Rate Limiting
-const limiter = rateLimit({
-  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 200,
-  message: 'Слишком много запросов с этого IP, попробуйте позже',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use('/api/', limiter);
-
-// Сжатие
-app.use(compression());
-
-// Логирование
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
+  return {
+    server: http.createServer(app),
+    protocol: 'http',
+  };
 }
 
-// Body parser
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
-
-// Data sanitization against NoSQL query injection
-app.use(mongoSanitize());
-
-// Data sanitization against XSS
-app.use(xss());
-
-// Prevent parameter pollution
-app.use(hpp());
-
-// Static files
-app.use('/uploads', express.static(join(__dirname, 'uploads')));
-
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/users', userRoutes);
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Jola API работает стабильно',
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    status: 'error',
-    message: 'Маршрут не найден',
-  });
-});
-
-// Global error handler
-app.use(errorHandler);
-
-// Start server
-const PORT = process.env.PORT || 5000;
-const server = async () => {
+const start = async () => {
   await connectDB();
-  app.listen(PORT, () => {
-    console.log(`🚀 Jola Server запущен на порту ${PORT} в режиме ${process.env.NODE_ENV}`);
+
+  if (process.env.NODE_ENV !== 'test') {
+    await seedPolygraphyServices();
+    startTempUploadsCleanup();
+  }
+
+  const { server, protocol } = createServer();
+
+  server.listen(PORT, () => {
+    console.log(`🚀 Jola Server запущен на ${protocol}://localhost:${PORT} в режиме ${process.env.NODE_ENV}`);
     console.log(`🔗 Frontend: ${process.env.CLIENT_URL}`);
+
+    if (process.env.NODE_ENV !== 'test') {
+      const token = String(process.env.TELEGRAM_BOT_TOKEN || '').trim();
+      const enabledRaw = String(process.env.TELEGRAM_BOT_ENABLED || '').trim().toLowerCase();
+      const shouldStartTelegramBot = Boolean(token) && enabledRaw !== 'false';
+
+      if (shouldStartTelegramBot) {
+        try {
+          startTelegramBot();
+        } catch (error) {
+          console.warn('⚠️ Telegram bot start failed:', error?.message || error);
+        }
+      } else {
+        console.log('ℹ️ Telegram bot disabled (set TELEGRAM_BOT_TOKEN and keep TELEGRAM_BOT_ENABLED != false)');
+      }
+    }
   });
 };
 
-server();
+start();
 
-// Graceful shutdown
-process.on('unhandledRejection', (err) => {
+process.on('unhandledRejection', (error) => {
   console.log('❌ Unhandled Rejection! Выключение сервера...');
-  console.error(err);
+  console.error(error);
   process.exit(1);
 });
 
-process.on('uncaughtException', (err) => {
+process.on('uncaughtException', (error) => {
   console.log('❌ Uncaught Exception! Выключение сервера...');
-  console.error(err);
+  console.error(error);
   process.exit(1);
 });

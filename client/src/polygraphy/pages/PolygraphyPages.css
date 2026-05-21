@@ -1,0 +1,659 @@
+.poly-page {
+  padding: 1.25rem 0 2.4rem;
+}
+
+.poly-center {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.poly-hero {
+  border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border));
+  border-radius: 30px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-card-bg) 97%, transparent), color-mix(in srgb, var(--color-card-bg) 90%, transparent));
+  box-shadow: 0 26px 58px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+}
+
+.poly-hero--premium {
+  background:
+    radial-gradient(900px 320px at 0% 0%, rgba(11, 91, 211, 0.18), transparent 58%),
+    radial-gradient(880px 320px at 100% 0%, rgba(184, 50, 240, 0.12), transparent 62%),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-card-bg) 98%, transparent), color-mix(in srgb, var(--color-card-bg) 88%, transparent));
+}
+
+.poly-hero--compact {
+  margin-bottom: 0.8rem;
+}
+
+.poly-hero-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.35rem;
+}
+
+.poly-hero-inner--stacked {
+  align-items: flex-start;
+}
+
+.poly-title {
+  margin: 0;
+  font-size: clamp(1.9rem, 4vw, 2.5rem);
+}
+
+.poly-subtitle {
+  margin-top: 0.5rem;
+  color: var(--color-text-secondary);
+  max-width: 60ch;
+  font-weight: 700;
+}
+
+.poly-hero-badges,
+.poly-service-tags,
+.poly-card-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.poly-hero-badges {
+  justify-content: flex-end;
+}
+
+.poly-badge,
+.poly-chip {
+  border: 1px solid color-mix(in srgb, var(--color-primary) 10%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface) 76%, transparent);
+  padding: 0.36rem 0.68rem;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.82rem;
+}
+
+.poly-badge--soft {
+  margin-bottom: 0.7rem;
+}
+
+.poly-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  padding: 0 1.35rem 1.35rem;
+}
+
+.poly-stat-card {
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface) 76%, transparent);
+  padding: 1rem;
+  display: grid;
+  gap: 0.18rem;
+}
+
+.poly-stat-card strong {
+  font-size: 1.28rem;
+  color: var(--color-text);
+}
+
+.poly-stat-card span {
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.poly-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.poly-section-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0 0.8rem;
+}
+
+.poly-section-title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.poly-section-line {
+  height: 1px;
+  flex: 1;
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-border));
+}
+
+.poly-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.poly-card {
+  border: 1px solid color-mix(in srgb, var(--color-primary) 10%, var(--color-border));
+  border-radius: 24px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-card-bg) 98%, transparent), color-mix(in srgb, var(--color-card-bg) 90%, transparent));
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.07);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.poly-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 28px 56px rgba(15, 23, 42, 0.12);
+  border-color: color-mix(in srgb, var(--color-primary) 26%, var(--color-border));
+}
+
+.poly-card--glow {
+  background:
+    radial-gradient(420px 160px at 0% 0%, rgba(11, 91, 211, 0.14), transparent 58%),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-card-bg) 98%, transparent), color-mix(in srgb, var(--color-card-bg) 90%, transparent));
+}
+
+.poly-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.poly-card-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: var(--gradient-primary);
+  color: #fff;
+  box-shadow: 0 18px 34px rgba(11, 91, 211, 0.16);
+  flex-shrink: 0;
+}
+
+.poly-card-body {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.poly-card-title {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--color-text);
+}
+
+.poly-card-desc {
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.poly-card-cta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.65rem;
+  margin-top: auto;
+  border-top: 1px solid color-mix(in srgb, var(--color-primary) 10%, var(--color-border));
+  font-weight: 900;
+}
+
+.poly-error {
+  border: 1px solid color-mix(in srgb, var(--color-error) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--color-error) 16%, transparent);
+  border-radius: 22px;
+  padding: 0.85rem 1rem;
+  color: var(--color-text);
+  margin: 1rem 0;
+}
+
+.poly-note {
+  margin-top: 1.2rem;
+}
+
+.poly-note-card {
+  border: 1px solid color-mix(in srgb, var(--color-primary) 10%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  border-radius: 22px;
+  padding: 1rem;
+}
+
+.poly-note-card--accent {
+  background:
+    radial-gradient(420px 160px at 0% 0%, rgba(11, 91, 211, 0.12), transparent 62%),
+    color-mix(in srgb, var(--color-surface) 74%, transparent);
+}
+
+.poly-note-title {
+  font-weight: 900;
+  margin-bottom: 0.3rem;
+}
+
+.poly-note-text {
+  color: var(--color-text-secondary);
+  margin: 0;
+  font-weight: 700;
+}
+
+.poly-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.poly-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 900;
+}
+
+.poly-breadcrumb {
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.poly-service-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.poly-config {
+  margin-top: 1rem;
+}
+
+.poly-config-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.panel {
+  padding: 1rem;
+}
+
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.panel-hint {
+  color: var(--color-text-secondary);
+  font-size: 0.92rem;
+  max-width: 48ch;
+  font-weight: 700;
+}
+
+.dropzone {
+  border: 1px dashed color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+  border-radius: 24px;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--color-surface) 74%, transparent);
+  transition: border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.dropzone:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 55%, var(--color-border));
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px rgba(11, 91, 211, 0.08);
+}
+
+.dropzone-inner {
+  display: grid;
+  place-items: center;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.drop-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: var(--gradient-primary);
+  color: #fff;
+  margin-bottom: 0.25rem;
+  box-shadow: 0 18px 34px rgba(11, 91, 211, 0.14);
+}
+
+.drop-title {
+  font-weight: 900;
+  font-size: 1.05rem;
+}
+
+.drop-sub {
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.poly-page input,
+.poly-page textarea,
+.poly-page select {
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 10%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  color: var(--color-text);
+  padding: 0.78rem 0.86rem;
+}
+
+.poly-page textarea {
+  line-height: 1.55;
+}
+
+.poly-page .btn.ghost,
+.poly-page .btn.primary,
+.poly-page .btn.danger {
+  border-radius: 16px;
+}
+
+.oe-canvasWrap {
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border));
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.18), rgba(15, 23, 42, 0.04)),
+    color-mix(in srgb, var(--color-surface) 78%, transparent);
+  padding: 1rem;
+  overflow: auto;
+}
+
+.oe-canvas {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 22px 40px rgba(15, 23, 42, 0.14);
+}
+
+.poly-page .ql-toolbar.ql-snow {
+  border: none;
+  border-bottom: 1px solid rgba(17, 24, 39, 0.12);
+  background: #f8fafc;
+}
+
+.poly-page .ql-container.ql-snow {
+  border: none;
+  font-family: Inter, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.poly-page .ql-editor {
+  padding: 16px;
+}
+
+@media (max-width: 1000px) {
+  .poly-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .poly-config-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .poly-hero-inner,
+  .poly-topbar,
+  .poly-service-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .poly-hero-badges,
+  .poly-service-tags {
+    justify-content: flex-start;
+  }
+
+  .poly-hero-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .poly-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .poly-title {
+    font-size: 1.7rem;
+  }
+
+  .poly-hero,
+  .poly-card,
+  .poly-note-card {
+    border-radius: 24px;
+  }
+}
+
+
+@media (max-width: 700px) {
+  .poly-page {
+    padding: 0.85rem 0 1.5rem;
+  }
+
+  .poly-hero-inner {
+    padding: 0.95rem;
+    gap: 0.75rem;
+  }
+
+  .poly-title {
+    font-size: 1.45rem;
+    line-height: 1.08;
+  }
+
+  .poly-subtitle,
+  .poly-note-text,
+  .poly-card-desc {
+    font-size: 0.84rem;
+  }
+
+  .poly-grid,
+  .poly-grid--editors {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .poly-card {
+    padding: 0.78rem;
+    border-radius: 18px;
+    gap: 0.55rem;
+  }
+
+  .poly-card-top {
+    gap: 0.55rem;
+  }
+
+  .poly-card-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 13px;
+  }
+
+  .poly-card-title {
+    font-size: 0.96rem;
+  }
+
+  .poly-card-desc {
+    line-height: 1.35;
+  }
+
+  .poly-stat-card {
+    padding: 0.78rem;
+    border-radius: 16px;
+  }
+
+  .panel,
+  .dropzone,
+  .oe-canvasWrap {
+    padding: 0.75rem;
+    border-radius: 18px;
+  }
+}
+
+@media (max-width: 420px) {
+  .poly-grid,
+  .poly-grid--editors {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .poly-card {
+    padding: 0.68rem;
+  }
+
+  .poly-card-title {
+    font-size: 0.9rem;
+  }
+
+  .poly-card-desc {
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-width: 700px) {
+  .poly-hero,
+  .poly-card {
+    border-radius: 18px;
+  }
+
+  .poly-hero {
+    padding: 0;
+  }
+
+  .poly-hero-inner {
+    padding: 1rem;
+    gap: 0.7rem;
+  }
+
+  .poly-hero-title {
+    font-size: 1.55rem;
+    line-height: 1.08;
+  }
+
+  .poly-grid,
+  .poly-grid--editors {
+    gap: 0.6rem;
+  }
+
+  .poly-card {
+    padding: 0.8rem;
+  }
+}
+
+
+.poly-config-grid--editor {
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.pdf-preset-grid,
+.docx-snippet-grid,
+.docx-stats-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.pdf-preset-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 1rem;
+}
+
+.pdf-preset-card,
+.docx-snippet-card,
+.docx-stat-box {
+  border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border));
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+  padding: 0.95rem 1rem;
+}
+
+.pdf-preset-card,
+.docx-snippet-card {
+  display: grid;
+  gap: 0.28rem;
+  text-align: left;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.pdf-preset-card:hover,
+.docx-snippet-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-primary) 36%, var(--color-border));
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.08);
+}
+
+.pdf-preset-card strong,
+.docx-snippet-card strong,
+.docx-stat-box strong {
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.pdf-preset-card span,
+.docx-snippet-card span,
+.docx-stat-box span {
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.docx-stats-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.docx-editor-shell {
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  overflow: hidden;
+}
+
+.poly-preview-panel {
+  overflow: hidden;
+}
+
+@media (max-width: 1000px) {
+  .poly-config-grid--editor,
+  .pdf-preset-grid,
+  .docx-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.docx-stat-box--file {
+  grid-column: 1 / -1;
+}
+.docx-stat-box--file strong {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

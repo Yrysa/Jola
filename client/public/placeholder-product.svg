@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b5bd3" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#b832f0" stop-opacity="0.14"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" rx="32" fill="url(#g)"/>
+  <g fill="none" stroke="#0b5bd3" stroke-opacity="0.35" stroke-width="10">
+    <path d="M165 395c40-108 132-180 250-180s210 72 250 180"/>
+    <path d="M240 380c30-70 94-116 175-116s145 46 175 116"/>
+  </g>
+  <g fill="#1b1d29" fill-opacity="0.55" font-family="Inter,Arial,sans-serif" font-size="34" font-weight="700">
+    <text x="50%" y="52%" text-anchor="middle">Jola</text>
+    <text x="50%" y="60%" text-anchor="middle" font-size="22" font-weight="600">Нет изображения</text>
+  </g>
+</svg>

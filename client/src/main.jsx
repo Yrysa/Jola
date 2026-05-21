@@ -1,4 +1,6 @@
 import React from 'react';
+import '@fontsource/inter/latin.css';
+import './i18n.js';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
@@ -6,8 +8,9 @@ import { Toaster } from 'react-hot-toast';
 import App from './App.jsx';
 import { UiSettingsProvider } from './context/UiSettingsContext.jsx';
 import './styles/global.css';
+import './polygraphy/components/OnlineEditorModal.css';
 
-// React Query client
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -20,8 +23,7 @@ const queryClient = new QueryClient({
 });
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}>
       <UiSettingsProvider>
         <BrowserRouter
           future={{
@@ -43,5 +45,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         </BrowserRouter>
       </UiSettingsProvider>
     </QueryClientProvider>
-  </React.StrictMode>
 );

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import './AuthPage.css';
+import { useTranslation } from 'react-i18next';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -17,6 +18,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { register, error, clearError } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -27,25 +29,26 @@ export default function RegisterPage() {
     e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error('Пароли не совпадают');
+      toast.error(t('auth.passMismatch'));
       return;
     }
 
     if (formData.password.length < 6) {
-      toast.error('Пароль должен содержать минимум 6 символов');
+      toast.error(t('auth.passTooShort'));
       return;
     }
 
     try {
-      await register({
+      const data = await register({
         name: formData.name,
         email: formData.email,
         password: formData.password,
       });
-      toast.success('Регистрация успешна!');
+      const name = data?.user?.name;
+      toast.success(name ? t('auth.welcome', { name }) : t('auth.registerOk'));
       navigate('/');
     } catch (err) {
-      toast.error(err.message || 'Ошибка регистрации');
+      toast.error(err.message || t('common.error'));
     }
   };
 
@@ -58,13 +61,13 @@ export default function RegisterPage() {
         transition={{ duration: 0.5 }}
       >
         <div className="auth-header">
-          <h2>Регистрация в Jola</h2>
-          <p>Создайте свой аккаунт</p>
+          <h2>{t('auth.registerTitle')}</h2>
+          <p>{t('auth.registerSubtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label htmlFor="name">Имя</label>
+            <label htmlFor="name">{t('auth.name')}</label>
             <div className="input-wrapper">
               <input
                 type="text"
@@ -72,7 +75,7 @@ export default function RegisterPage() {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="Ваше имя"
+                placeholder={t('auth.yourName')}
                 required
                 minLength="2"
               />
@@ -80,7 +83,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">{t('auth.email')}</label>
             <div className="input-wrapper">
               <input
                 type="email"
@@ -88,14 +91,14 @@ export default function RegisterPage() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="Ваш email"
+                placeholder={t('auth.yourEmail')}
                 required
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Пароль</label>
+            <label htmlFor="password">{t('auth.password')}</label>
             <div className="input-wrapper">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -103,7 +106,7 @@ export default function RegisterPage() {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Минимум 6 символов"
+                placeholder={t('auth.min6')}
                 required
                 minLength="6"
               />
@@ -111,7 +114,7 @@ export default function RegisterPage() {
                 type="button"
                 className="toggle-password"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
               >
                 {showPassword ? <FiEyeOff /> : <FiEye />}
               </button>
@@ -119,7 +122,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="confirmPassword">Подтверждение пароля</label>
+            <label htmlFor="confirmPassword">{t('auth.confirmPassword')}</label>
             <div className="input-wrapper">
               <input
                 type={showConfirmPassword ? 'text' : 'password'}
@@ -127,7 +130,7 @@ export default function RegisterPage() {
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                placeholder="Повторите пароль"
+                placeholder={t('auth.repeatPassword')}
                 required
                 minLength="6"
               />
@@ -135,7 +138,7 @@ export default function RegisterPage() {
                 type="button"
                 className="toggle-password"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                aria-label={showConfirmPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                aria-label={showConfirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
               >
                 {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
               </button>
@@ -150,15 +153,15 @@ export default function RegisterPage() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            Зарегистрироваться
+            {t('auth.register')}
           </motion.button>
         </form>
 
         <div className="auth-footer">
           <p>
-            Уже есть аккаунт?{' '}
+            {t('auth.haveAccount')}{' '}
             <Link to="/login" className="link">
-              Войти
+              {t('auth.goLogin')}
             </Link>
           </p>
         </div>

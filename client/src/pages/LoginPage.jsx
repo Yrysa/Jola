@@ -5,12 +5,14 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import './AuthPage.css';
+import { useTranslation } from 'react-i18next';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const { login, error, clearError } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -20,11 +22,12 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await login(formData.email, formData.password);
-      toast.success('Успешный вход!');
+      const data = await login(formData.email, formData.password);
+      const name = data?.user?.name;
+      toast.success(name ? t('auth.hello', { name }) : t('auth.loginOk'));
       navigate('/');
     } catch (err) {
-      toast.error(err.message || 'Ошибка входа');
+      toast.error(err.message || t('common.error'));
     }
   };
 
@@ -37,13 +40,13 @@ export default function LoginPage() {
         transition={{ duration: 0.5 }}
       >
         <div className="auth-header">
-          <h2>Вход в Jola</h2>
-          <p>Добро пожаловать обратно!</p>
+          <h2>{t('auth.loginTitle')}</h2>
+          <p>{t('auth.loginSubtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">{t('auth.email')}</label>
             <div className="input-wrapper">
               <input
                 type="email"
@@ -51,14 +54,14 @@ export default function LoginPage() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="Ваш email"
+                placeholder={t('auth.yourEmail')}
                 required
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Пароль</label>
+            <label htmlFor="password">{t('auth.password')}</label>
             <div className="input-wrapper">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -66,17 +69,22 @@ export default function LoginPage() {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Ваш пароль"
+                placeholder={t('auth.yourPassword')}
                 required
               />
               <button
                 type="button"
                 className="toggle-password"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
               >
                 {showPassword ? <FiEyeOff /> : <FiEye />}
               </button>
+            </div>
+            <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
+              <Link to="/forgot-password" className="link" style={{ fontWeight: 700, fontSize: 14 }}>
+                {t('auth.forgot')}
+              </Link>
             </div>
           </div>
 
@@ -88,15 +96,15 @@ export default function LoginPage() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            Войти
+            {t('auth.login')}
           </motion.button>
         </form>
 
         <div className="auth-footer">
           <p>
-            Нет аккаунта?{' '}
+            {t('auth.noAccount')}{' '}
             <Link to="/register" className="link">
-              Зарегистрироваться
+              {t('auth.goRegister')}
             </Link>
           </p>
         </div>

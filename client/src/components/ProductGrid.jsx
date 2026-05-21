@@ -1,55 +1,83 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from 'react-query';
-import { motion, AnimatePresence } from 'framer-motion';
-import ProductCard from './ProductCard.jsx';
-import LoadingSpinner from './LoadingSpinner.jsx';
 import { productService } from '../services/productService.js';
+import ProductCard from './ProductCard.jsx';
+import SkeletonCard from './SkeletonCard.jsx';
+import Pagination from './Pagination.jsx';
 
-export default function ProductGrid({ filters = {} }) {
-  const [page, setPage] = useState(1);
+export default function ProductGrid({
+  filters = {},
+  page: controlledPage,
+  onPageChange,
+  showPagination = true,
+  showCounts = true,
+  emptyTitle,
+  emptySubtitle,
+  onEmptyAction,
+  emptyActionLabel = 'Сбросить фильтры',
+}) {
+  const [internalPage, setInternalPage] = useState(1);
+  const page = controlledPage ?? internalPage;
 
-  const filtersKey = useMemo(() => JSON.stringify(filters ?? {}), [filters]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [filtersKey]);
-  
-  const { data, isLoading, isError, error } = useQuery(
-    ['products', filtersKey, page],
-    () => productService.getProducts(page, filters),
-    {
-      keepPreviousData: true,
-    }
+  const queryKey = useMemo(
+    () => ['products', JSON.stringify({ ...filters, page })],
+    [filters, page]
   );
 
-  if (isLoading && page === 1) return <LoadingSpinner fullScreen />;
-  if (isError) return <div className="error-message">Ошибка: {error.message}</div>;
+  const { data, isLoading, isError, error, isFetching } = useQuery(
+    queryKey,
+    () => productService.getProducts({ ...filters, page }),
+    { keepPreviousData: true, staleTime: 1000 * 20 }
+  );
+
+  const products = data?.products ?? [];
+  const pagination = data?.pagination;
+
+  const setPage = (p) => {
+    const next = Math.max(1, p);
+    if (controlledPage == null) setInternalPage(next);
+    onPageChange?.(next);
+  };
 
   return (
     <div className="product-grid-container">
-      <AnimatePresence>
-        <motion.div
-          className="product-grid"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          {data?.products?.map((product) => (
-            <ProductCard key={product._id} product={product} />
-          ))}
-        </motion.div>
-      </AnimatePresence>
-
-      {data?.pagination?.hasNext && (
-        <div className="load-more">
-          <button
-            onClick={() => setPage(page + 1)}
-            className="btn btn-secondary"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Загрузка...' : 'Загрузить еще'}
-          </button>
+      {showCounts && pagination && (
+        <div className="products-count">
+          <span>{pagination.from}–{pagination.to} из {pagination.total}</span>
+          {isFetching && <span className="products-count__loading">• обновляю…</span>}
         </div>
+      )}
+
+      {isError && (
+        <div className="error-message">Ошибка: {error.message}</div>
+      )}
+
+      <div className="product-grid">
+        {isLoading
+          ? Array.from({ length: Number(filters.limit || 12) }).map((_, i) => <SkeletonCard key={i} />)
+          : products.map((product) => (
+              <ProductCard key={product._id} product={product} />
+            ))}
+      </div>
+
+      {!isLoading && products.length === 0 && (
+        <div className="empty-state">
+          <div className="empty-state__title">{emptyTitle || 'Товары не найдены'}</div>
+          <div className="empty-state__subtitle">{emptySubtitle || 'Попробуйте изменить фильтры или сбросить их.'}</div>
+          {onEmptyAction && (
+            <button className="btn btn-secondary" onClick={onEmptyAction}>
+              {emptyActionLabel}
+            </button>
+          )}
+        </div>
+      )}
+
+      {showPagination && pagination && (
+        <Pagination
+          page={pagination.page}
+          pages={pagination.pages}
+          onChange={setPage}
+        />
       )}
     </div>
   );

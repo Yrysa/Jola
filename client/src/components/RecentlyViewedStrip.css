@@ -1,0 +1,22 @@
+.rv {
+  margin-top: 2.5rem;
+}
+
+.rv__title {
+  font-size: 1.4rem;
+  margin-bottom: 0.9rem;
+}
+
+.rv__row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(240px, 260px);
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scroll-snap-type: x mandatory;
+}
+
+.rv__item {
+  scroll-snap-align: start;
+}

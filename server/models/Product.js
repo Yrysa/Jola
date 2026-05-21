@@ -20,16 +20,26 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String,
     required: [true, 'Категория обязательна'],
-    enum: ['electronics', 'clothing', 'books', 'home', 'sports', 'other'],
+    
+    
+    
+    
+    trim: true,
+    lowercase: true,
   },
   brand: {
     type: String,
     required: [true, 'Бренд обязателен'],
   },
-  // Массив ссылок на картинки. default нужен, чтобы фронт не падал на старых документах.
+  
   images: {
     type: [{ type: String, required: true }],
     default: [],
+  },
+  videoUrl: {
+    type: String,
+    trim: true,
+    default: '',
   },
   stock: {
     type: Number,
@@ -67,13 +77,15 @@ const productSchema = new mongoose.Schema({
   toObject: { virtuals: true },
 });
 
-// Виртуальное поле для цены со скидкой
+
 productSchema.virtual('discountedPrice').get(function() {
   return this.price * (1 - this.discount / 100);
 });
 
-// Индексы для производительности
+
 productSchema.index({ category: 1, price: 1 });
-productSchema.index({ name: 'text', description: 'text' });
+productSchema.index({ name: 1 });
+productSchema.index({ brand: 1 });
+productSchema.index({ name: "text", description: "text", brand: "text" });
 
 export default mongoose.model('Product', productSchema);

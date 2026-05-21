@@ -57,7 +57,7 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Размеры */
+
 .loading-spinner.small .spinner {
   width: 40px;
   height: 40px;
