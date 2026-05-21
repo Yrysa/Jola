@@ -1,15 +1,14 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
+  FiAlertCircle,
   FiCheckCircle,
   FiClock,
   FiCreditCard,
-  FiDollarSign,
   FiMapPin,
   FiMessageSquare,
   FiShield,
-  FiShoppingBag,
   FiSmartphone,
   FiTruck,
 } from "react-icons/fi";
@@ -33,16 +32,14 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("stripe_card");
   const [deliveryKey, setDeliveryKey] = useState('standard');
+  const [policyAccepted, setPolicyAccepted] = useState(false);
   const { taxRate, freeShippingThreshold, shippingFee } = useAppConfig();
   const isRu = (i18n.language || 'ru').toLowerCase().startsWith('ru');
   const currentHost = typeof window !== 'undefined' ? window.location.host : '';
 
   const PAYMENT_OPTIONS = [
-    { key: 'stripe_card', title: isRu ? 'Карта (Stripe)' : 'Card (Stripe)', hint: isRu ? 'Быстрая оплата Visa / Mastercard.' : 'Fast Visa / Mastercard checkout.', icon: FiCreditCard },
-    { key: 'paypal', title: 'PayPal', hint: isRu ? 'Для международной оплаты.' : 'For international checkout.', icon: FiShield },
-    { key: 'freedom_pay', title: 'Freedom Pay', hint: isRu ? 'Локальный KZ-шлюз.' : 'Local KZ gateway.', icon: FiShoppingBag },
-    { key: 'kaspi', title: 'Kaspi', hint: isRu ? 'Казахстанский локальный checkout.' : 'Kazakhstan local checkout.', icon: FiDollarSign },
-    { key: 'cash', title: isRu ? 'Наличными' : 'Cash', hint: isRu ? 'Без редиректа, оплата при получении.' : 'No redirect, pay on delivery.', icon: FiTruck },
+    { key: 'stripe_card', title: isRu ? 'Карта (Stripe)' : 'Card (Stripe)', hint: isRu ? 'Онлайн-оплата Visa / Mastercard через защищённый checkout.' : 'Secure Visa / Mastercard online checkout.', icon: FiCreditCard },
+    { key: 'cash', title: isRu ? 'Наличными' : 'Cash', hint: isRu ? 'Оплата при получении после подтверждения заказа.' : 'Pay on delivery after order confirmation.', icon: FiTruck },
   ];
 
   const DELIVERY_OPTIONS = {
@@ -90,13 +87,14 @@ export default function CheckoutPage() {
   const totalCount = items.reduce((sum, item) => sum + Number(item?.quantity || 1), 0);
 
   const providerHighlights = isRu
-    ? ['Возврат после оплаты на это устройство', 'Подтверждение заказа сразу в истории', 'Stripe / PayPal / Freedom Pay / Kaspi', 'Наличные без редиректа']
-    : ['Return after payment to this device', 'Order confirmation appears in your history', 'Stripe / PayPal / Freedom Pay / Kaspi', 'Cash without redirect'];
+    ? ['Stripe для онлайн-оплаты', 'Наличные при получении', 'Подтверждение заказа в истории', 'Без скрытых способов оплаты']
+    : ['Stripe online checkout', 'Cash on delivery', 'Order confirmation in history', 'No hidden payment methods'];
 
   const selectedPayment = useMemo(
     () => PAYMENT_OPTIONS.find((option) => option.key === paymentMethod) || PAYMENT_OPTIONS[0],
-    [paymentMethod],
+    [paymentMethod, isRu],
   );
+  const SelectedPaymentIcon = selectedPayment.icon;
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -109,11 +107,22 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (!policyAccepted) {
+      toast.error(isRu ? 'Подтвердите согласие с политикой и условиями покупки.' : 'Please accept the policy and purchase terms.');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const productItems = items.filter((x) => x.type === 'product');
       const serviceItems = items.filter((x) => x.type === 'service');
+
+      const cashConfirmationNote = paymentMethod === 'cash'
+        ? (isRu
+          ? 'Оплата наличными: клиент должен подтвердить заказ через WhatsApp или Telegram.'
+          : 'Cash payment: the customer must confirm the order via WhatsApp or Telegram.')
+        : '';
 
       const orderData = {
         orderItems: productItems.map((item) => ({
@@ -138,7 +147,7 @@ export default function CheckoutPage() {
         paymentMethod,
         deliveryWindow: deliveryLabel(DELIVERY_OPTIONS[deliveryKey] || DELIVERY_OPTIONS.standard),
         deliveryDays: (DELIVERY_OPTIONS[deliveryKey] || DELIVERY_OPTIONS.standard).days,
-        customerNote: formData.customerNote,
+        customerNote: [formData.customerNote, cashConfirmationNote].filter(Boolean).join('\n'),
       };
 
       const { order, paymentSession } = await orderService.createOrder(orderData);
@@ -186,12 +195,12 @@ export default function CheckoutPage() {
           transition={{ duration: 0.4 }}
         >
           <div className="checkout-hero__copy">
-            <span className="checkout-hero__eyebrow">{isRu ? 'Checkout flow' : 'Checkout flow'}</span>
-            <h1>{isRu ? 'Оформление без возврата на localhost' : 'Checkout that returns to this device'}</h1>
+            <span className="checkout-hero__eyebrow">{isRu ? 'Оформление заказа' : 'Checkout'}</span>
+            <h1>{isRu ? 'Проверьте заказ и выберите оплату' : 'Review your order and choose payment'}</h1>
             <p>
               {isRu
-                ? 'После оплаты заказ вернёт тебя на тот же адрес и экран, с которого ты оформляешь покупку сейчас.'
-                : 'After payment, the order flow returns you to the same device and address you are using right now.'}
+                ? 'Доступны безопасная онлайн-оплата Stripe и оплата наличными при получении после подтверждения заказа.'
+                : 'Choose secure Stripe online payment or cash on delivery after order confirmation.'}
             </p>
             <div className="checkout-hero__chips">
               {providerHighlights.map((item) => (
@@ -203,7 +212,7 @@ export default function CheckoutPage() {
             <div className="checkout-hero__panel">
               <div className="checkout-hero__panel-label">{isRu ? 'Текущее устройство' : 'Current device'}</div>
               <strong>{currentHost || (isRu ? 'Определим автоматически' : 'Detected automatically')}</strong>
-              <p>{isRu ? 'Этот адрес используется как возврат после онлайн-оплаты.' : 'This address is used as the post-payment return target.'}</p>
+              <p>{isRu ? 'После онлайн-оплаты checkout вернёт вас на этот сайт.' : 'After online payment, checkout returns you to this site.'}</p>
             </div>
             <div className="checkout-steps">
               <div className="checkout-step is-active"><span>1</span><small>{isRu ? 'Адрес' : 'Address'}</small></div>
@@ -286,13 +295,13 @@ export default function CheckoutPage() {
                   <span>{isRu ? 'Оплата' : 'Payment'}</span>
                   <h2>{t('checkout.paymentTitle')}</h2>
                 </div>
-                <div className="checkout-section-icon"><selectedPayment.icon /></div>
+                <div className="checkout-section-icon"><SelectedPaymentIcon /></div>
               </div>
 
               <div className="payment-kz-stack checkout-kz-stack">
                 <div>
-                  <strong>{isRu ? 'Оплата и возврат на этот экран' : 'Payment with return to this screen'}</strong>
-                  <p>{isRu ? 'Для онлайн-способов после оплаты пользователь возвращается на тот же адрес, с которого открыл checkout.' : 'Online payment methods now return the shopper to the same address that opened checkout.'}</p>
+                  <strong>{isRu ? 'Доступные способы оплаты' : 'Available payment methods'}</strong>
+                  <p>{isRu ? 'Сейчас активны только Stripe и наличные. Остальные способы будут подключаться отдельно после настройки.' : 'Only Stripe and cash are active now. Other methods can be connected later after configuration.'}</p>
                 </div>
                 <div className="payment-kz-stack__chips">
                   {providerHighlights.map((item) => (
@@ -321,12 +330,15 @@ export default function CheckoutPage() {
                 })}
               </div>
               <div className="payment-help payment-help--accent">
-                {paymentMethod === 'stripe_card' ? (isRu ? 'Stripe checkout откроется безопасно, а потом вернёт тебя на текущий адрес.' : 'Stripe checkout opens securely and returns you to the current address.') : null}
-                {paymentMethod === 'paypal' ? (isRu ? 'PayPal использует merchant URL и после оплаты возвращает тебя обратно в приложение.' : 'PayPal uses the merchant URL and returns you back into the app after payment.') : null}
-                {paymentMethod === 'freedom_pay' ? (isRu ? 'Freedom Pay остаётся локальным KZ-способом и тоже возвращает на текущий экран.' : 'Freedom Pay stays a local KZ method and returns to the current screen.') : null}
-                {paymentMethod === 'kaspi' ? (isRu ? 'Kaspi flow теперь готов к возврату на текущее устройство после merchant redirect.' : 'Kaspi flow is now prepared to return to the current device after merchant redirect.') : null}
-                {paymentMethod === 'cash' ? (isRu ? 'Заказ создаётся сразу без перехода на внешний платёжный экран.' : 'The order is created immediately without leaving the app.') : null}
+                {paymentMethod === 'stripe_card' ? (isRu ? 'Stripe откроет защищённую страницу оплаты и вернёт вас обратно после завершения.' : 'Stripe opens a secure payment page and returns you after completion.') : null}
+                {paymentMethod === 'cash' ? (isRu ? 'При оплате наличными заказ нужно подтвердить через WhatsApp или Telegram до обработки.' : 'For cash payment, the order must be confirmed via WhatsApp or Telegram before processing.') : null}
               </div>
+              {paymentMethod === 'cash' ? (
+                <div className="cash-confirmation-alert">
+                  <FiAlertCircle />
+                  <span>{isRu ? 'После оформления свяжитесь с магазином в WhatsApp или Telegram, чтобы подтвердить заказ.' : 'After placing the order, contact the store on WhatsApp or Telegram to confirm it.'}</span>
+                </div>
+              ) : null}
             </section>
 
             <section className="checkout-section-card">
@@ -351,11 +363,29 @@ export default function CheckoutPage() {
               </label>
             </section>
 
+            <section className="checkout-section-card checkout-policy-card">
+              <label className="checkout-policy-check">
+                <input
+                  type="checkbox"
+                  checked={policyAccepted}
+                  onChange={(event) => setPolicyAccepted(event.target.checked)}
+                  required
+                />
+                <span>
+                  {isRu ? 'Я согласен с ' : 'I agree with the '}
+                  <Link to="/privacy" target="_blank" rel="noreferrer">
+                    {isRu ? 'политикой конфиденциальности' : 'privacy policy'}
+                  </Link>
+                  {isRu ? ' и условиями оформления заказа.' : ' and order terms.'}
+                </span>
+              </label>
+            </section>
+
             <div className="checkout-submit-row checkout-submit-row--desktop">
-              <button type="submit" className="btn btn-primary btn-checkout-large" disabled={loading}>
+              <button type="submit" className="btn btn-primary btn-checkout-large" disabled={loading || !policyAccepted}>
                 {loading ? t('checkout.placing') : t('checkout.placeOrder', { sum: formatPrice(total) })}
               </button>
-              <p>{isRu ? 'Заказ и платёжный маршрут фиксируются под текущее устройство.' : 'The order and payment return flow are bound to the current device.'}</p>
+              <p>{isRu ? 'Заказ будет создан после подтверждения данных и выбранного способа оплаты.' : 'The order will be created after confirming your details and payment method.'}</p>
             </div>
           </motion.form>
 
@@ -412,7 +442,7 @@ export default function CheckoutPage() {
 
               <div className="checkout-security checkout-security--stacked">
                 <div><FiShield /><span>{t('checkout.secure')}</span></div>
-                <div><FiCheckCircle /><span>{isRu ? 'Возврат на текущий экран' : 'Returns to current screen'}</span></div>
+                <div><FiCheckCircle /><span>{isRu ? 'Stripe или наличные' : 'Stripe or cash'}</span></div>
               </div>
             </div>
           </motion.aside>
@@ -425,7 +455,7 @@ export default function CheckoutPage() {
           <strong>{formatPrice(total)}</strong>
           <small>{currentHost || (isRu ? 'Определим адрес' : 'Address auto-detected')}</small>
         </div>
-        <button type="button" className="btn btn-primary checkout-mobile-hud__button" disabled={loading} onClick={handleSubmit}>
+        <button type="button" className="btn btn-primary checkout-mobile-hud__button" disabled={loading || !policyAccepted} onClick={handleSubmit}>
           {loading ? t('checkout.placing') : (isRu ? 'Оплатить / оформить' : 'Pay / place order')}
         </button>
       </div>
